@@ -103,7 +103,6 @@ Base URL: `/api/auth`
   "email": "jane@example.com",
   "password": "password123",
   "confirmPassword": "password123",
-  "acceptTerms": true
 }
 ```
 
@@ -116,7 +115,6 @@ Base URL: `/api/auth`
   "email": "adams@example.com",
   "password": "password123",
   "confirmPassword": "password123",
-  "acceptTerms": true
 }
 ```
 
