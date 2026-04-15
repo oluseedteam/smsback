@@ -84,9 +84,11 @@ class AuthController extends Controller
 
     private function buildUserPayload($user, string $role): array
     {
-        $idPayload = $role === 'teacher'
-            ? ['employee_id' => $user->employee_id]
-            : ['student_id' => $user->student_id];
+        $idPayload = match ($role) {
+            'teacher' => ['employee_id' => $user->employee_id],
+            'student' => ['student_id' => $user->student_id],
+            default => [],
+        };
 
         return [
             'id' => $user->id,

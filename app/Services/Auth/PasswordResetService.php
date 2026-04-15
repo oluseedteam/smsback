@@ -3,6 +3,8 @@
 namespace App\Services\Auth;
 
 use App\Repositories\UserRepository;
+use App\Models\Admin;
+use App\Models\Teacher;
 use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -21,7 +23,11 @@ class PasswordResetService
             return Password::INVALID_USER;
         }
 
-        $broker = $user instanceof \App\Models\Teacher ? 'teachers' : 'students';
+        $broker = match (true) {
+            $user instanceof Teacher => 'teachers',
+            $user instanceof Admin => 'admins',
+            default => 'students',
+        };
 
         return Password::broker($broker)->sendResetLink(['email' => $email]);
     }
@@ -35,7 +41,7 @@ class PasswordResetService
             'password_confirmation' => $payload['password_confirmation'],
         ];
 
-        foreach (['students', 'teachers'] as $broker) {
+        foreach (['students', 'teachers', 'admins'] as $broker) {
             $status = Password::broker($broker)->reset(
                 $credentials,
                 function (CanResetPassword $user, string $password): void {

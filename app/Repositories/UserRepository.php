@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Models\Admin;
 use App\Models\Student;
 use App\Models\Teacher;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -15,6 +16,10 @@ class UserRepository
 
     public function findByRoleAndLogin(string $role, string $login): ?Authenticatable
     {
+        if ($role === 'admin') {
+            return Admin::query()->where('email', $login)->first();
+        }
+
         $idColumn = $role === 'teacher' ? 'employee_id' : 'student_id';
 
         return $this->modelForRole($role)::query()
@@ -27,12 +32,17 @@ class UserRepository
 
     public function findByEmail(string $email): ?Authenticatable
     {
-        return Student::query()->where('email', $email)->first()
+        return Admin::query()->where('email', $email)->first()
+            ?? Student::query()->where('email', $email)->first()
             ?? Teacher::query()->where('email', $email)->first();
     }
 
     public function modelForRole(string $role): string
     {
-        return $role === 'teacher' ? Teacher::class : Student::class;
+        return match ($role) {
+            'teacher' => Teacher::class,
+            'admin' => Admin::class,
+            default => Student::class,
+        };
     }
 }
