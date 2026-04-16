@@ -142,4 +142,21 @@ class AuthEndpointsTest extends TestCase
 
         $loginResponse->assertOk()->assertJsonStructure(['token']);
     }
+
+    public function test_user_can_logout(): void
+    {
+        $user = Student::factory()->create([
+            'email' => 'logout@example.com',
+            'student_id' => 'SCH-8888',
+        ]);
+
+        $token = $user->createToken('test-token')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+            ->postJson('/api/auth/logout');
+
+        $response->assertOk()->assertJsonPath('message', 'Logged out successfully.');
+
+        $this->assertCount(0, $user->tokens);
+    }
 }

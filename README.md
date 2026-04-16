@@ -1,261 +1,164 @@
 # School Management System Auth API
 
-## 1. Project Overview
-This project is a production-ready Laravel REST API focused only on authentication for two roles:
-- Student
-- Teacher
+This is a production-ready Laravel REST API providing robust authentication services for a School Management System. It supports separate roles for **Students** and **Teachers**, with secure token-based authentication and flexible login options.
 
-Implemented features:
-- Registration (matching frontend signup fields)
-- Login (role + email/school ID + password)
-- Forgot password (email-based reset)
-- Reset password (token-based)
-- Token auth using Laravel Sanctum
-- Rate limiting for auth endpoints
+---
 
+## 🚀 1. Getting Started
 
+### Prerequisites
+- PHP 8.2+
+- Composer
+- MySQL/PostgreSQL (or SQLite for development)
 
-## 2. Tech Stack
-- Laravel 12 (PHP 8.2+)
-- MySQL
-- Laravel Sanctum (Bearer token auth)
-- Laravel Password Broker (secure reset tokens)
+### Setup Instructions
+1.  **Install dependencies**:
+    ```bash
+    composer install
+    ```
+2.  **Configure Environment**:
+    ```bash
+    cp .env.example .env
+    php artisan key:generate
+    ```
+3.  **Database Migration**:
+    Configure your `DB_*` settings in `.env`, then run:
+    ```bash
+    php artisan migrate
+    ```
+4.  **Run the Server**:
+    ```bash
+    php artisan serve
+    ```
+    The API will be available at `http://localhost:8000`.
 
-## 3. Setup Instructions
-1. Install dependencies
-```bash
-composer install
-```
+---
 
-2. Create environment file
-```bash
-cp .env.example .env
-```
+## 🔐 2. Authentication Workflow
 
-3. Generate app key
-```bash
-php artisan key:generate
-```
+This API uses **Laravel Sanctum** for secure, stateful, and token-based authentication.
 
-4. Configure database in `.env`
+1.  **Register/Login**: Send your credentials to the respective endpoints.
+2.  **Receive Token**: On success, you receive a `plainTextToken`.
+3.  **Authorize Requests**: Include this token in the `Authorization` header of all subsequent requests:
+    ```http
+    Authorization: Bearer <your_token_here>
+    Accept: application/json
+    ```
 
-5. Run migrations
-```bash
-php artisan migrate
-```
+---
 
-6. Start server
-```bash
-php artisan serve
-```
+## 🛠 3. API Reference
 
-## 4. Environment Variables
-Required/important values:
-```env
-APP_NAME="SMS API"
-APP_ENV=local
-APP_DEBUG=true
-APP_URL=http://localhost:8000
+All routes are prefixed with `/api/auth`.
 
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=sms_auth
-DB_USERNAME=root
-DB_PASSWORD=
+### 📝 Registration
+`POST /api/auth/register`
 
-AUTH_PASSWORD_RESET_EXPIRE=30
+Used to create a new Student or Teacher account.
 
-MAIL_MAILER=log
-MAIL_HOST=127.0.0.1
-MAIL_PORT=2525
-MAIL_USERNAME=null
-MAIL_PASSWORD=null
-MAIL_FROM_ADDRESS="noreply@example.com"
-MAIL_FROM_NAME="SMS Auth API"
-```
+| Field | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `fullName` | String | Yes | User's full name |
+| `email` | String | Yes | Unique email address |
+| `role` | String | Yes | `student` or `teacher` |
+| `studentId` | String | Required if role is `student` | Unique School ID |
+| `employeeId` | String | Required if role is `teacher` | Unique Employee ID |
+| `password` | String | Yes | Min 8 characters |
+| `confirmPassword` | String | Yes | Must match `password` |
 
-## 5. API Endpoints
-Base URL: `/api/auth`
-
-### Register
-- `POST /api/auth/register`
-
-### Login
-- `POST /api/auth/login`
-
-### Forgot Password
-- `POST /api/auth/forgot-password`
-
-### Reset Password
-- `POST /api/auth/reset-password`
-
-### Logout
-- `POST /api/auth/logout` (requires Bearer token)
-
-## 6. Example Request/Response JSON
-### Register Request
+**Example Student Request:**
 ```json
 {
-  "fullName": "Jane Doe",
-  "studentId": "SCH-1001",
+  "fullName": "John Doe",
+  "email": "john@school.edu",
   "role": "student",
-  "email": "jane@example.com",
-  "password": "password123",
-  "confirmPassword": "password123",
+  "studentId": "SCH-2024-001",
+  "password": "securePassword123",
+  "confirmPassword": "securePassword123"
 }
 ```
 
-### Register Request (Teacher)
+---
+
+### 🔑 Login
+`POST /api/auth/login`
+
+Returns an access token on success.
+
+| Field | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `role` | String | Yes | `student`, `teacher`, or `admin` |
+| `login` | String | Yes | **Email** (or Student/Employee ID for non-admins) |
+| `password` | String | Yes | User's password |
+
+**Example Request:**
 ```json
 {
-  "fullName": "Mr. Adams",
-  "employeeId": "EMP-2002",
-  "role": "teacher",
-  "email": "adams@example.com",
-  "password": "password123",
-  "confirmPassword": "password123",
+  "role": "admin",
+  "login": "admin@school.edu",
+  "password": "secureAdminPassword"
 }
 ```
 
-### Register Response (201)
-```json
-{
-  "message": "Registration successful.",
-  "token": "1|plainTextToken...",
-  "token_type": "Bearer",
-  "user": {
-    "id": 1,
-    "full_name": "Jane Doe",
-    "role": "student",
-    "student_id": "SCH-1001",
-    "email": "jane@example.com"
-  }
-}
-```
+---
 
-### Login Request
-```json
-{
-  "role": "teacher",
-  "login": "teacher@example.com",
-  "password": "password123"
-}
-```
+### 📩 Forgot Password
+`POST /api/auth/forgot-password`
 
-`login` accepts either email or school ID (`Email / School ID` from frontend).
+Initiates the password reset flow.
 
-### Login Response (200)
-```json
-{
-  "message": "Login successful.",
-  "token": "1|plainTextToken...",
-  "token_type": "Bearer",
-  "user": {
-    "id": 2,
-    "full_name": "Teacher One",
-    "role": "teacher",
-    "employee_id": "EMP-4455",
-    "email": "teacher@example.com"
-  }
-}
-```
+| Field | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `email` | String | Yes | Registered email address |
 
-### Forgot Password Request
-```json
-{
-  "email": "jane@example.com"
-}
-```
+**Note:** Returns a generic success message even if the email doesn't exist for security reasons.
 
-### Forgot Password Response (200)
-```json
-{
-  "message": "If that email exists, a password reset link has been sent."
-}
-```
+---
 
-### Reset Password Request
-```json
-{
-  "email": "jane@example.com",
-  "token": "reset-token",
-  "password": "newpassword123",
-  "confirmPassword": "newpassword123"
-}
-```
+### 🔄 Reset Password
+`POST /api/auth/reset-password`
 
-### Reset Password Response (200)
-```json
-{
-  "message": "Password reset successful."
-}
-```
+Completes the password reset using the token received via email.
 
-## 7. Database Schema (students + teachers tables)
-```sql
-CREATE TABLE students (
-  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  full_name VARCHAR(255) NOT NULL,
-  student_id VARCHAR(255) NOT NULL UNIQUE,
-  email VARCHAR(255) NOT NULL UNIQUE,
-  password VARCHAR(255) NOT NULL,
-  email_verified_at TIMESTAMP NULL,
-  remember_token VARCHAR(100) NULL,
-  created_at TIMESTAMP NULL,
-  updated_at TIMESTAMP NULL
-);
+| Field | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `email` | String | Yes | Registered email address |
+| `token` | String | Yes | Token from the reset email |
+| `password` | String | Yes | New password |
+| `confirmPassword` | String | Yes | Confirm new password |
 
-CREATE TABLE teachers (
-  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  full_name VARCHAR(255) NOT NULL,
-  employee_id VARCHAR(255) NOT NULL UNIQUE,
-  email VARCHAR(255) NOT NULL UNIQUE,
-  password VARCHAR(255) NOT NULL,
-  email_verified_at TIMESTAMP NULL,
-  remember_token VARCHAR(100) NULL,
-  created_at TIMESTAMP NULL,
-  updated_at TIMESTAMP NULL
-);
-```
+---
 
-## Frontend Field Mapping (Extracted)
-### Signup (`/signup`)
-- `fullName` (required text)
-- `studentId` (required for `student`)
-- `employeeId` (required for `teacher`)
-- `email` (required email)
-- `password` (required)
-- `confirmPassword` (required, must match password)
-- role toggle (`student` or `teacher`)
-- terms checkbox (required)
+### 🚪 Logout
+`POST /api/auth/logout`
 
-### Login (`/login`)
-- role toggle (`student` or `teacher`)
-- `Email / School ID` input (required)
-- `password` input (required)
+**Requires Bearer Token.** Revokes the current access token.
 
-### Forgot Password
-The shipped frontend bundle contains a `/forgot-password` link but no routed forgot-password form component was found in the loaded bundle. API supports standard email-based forgot/reset flow.
+---
 
-## Security Best Practices Applied
-- Password hashing with bcrypt (Laravel Hash)
-- Strict request validation via Form Requests
-- SQL injection protection through Eloquent/query builder
-- Throttling:
-  - `auth` limiter: 10 requests/minute
-  - `password-reset` limiter: 5 requests/minute
-- Password reset token security and expiry via Laravel password broker (`AUTH_PASSWORD_RESET_EXPIRE`)
-- Generic forgot-password response to reduce account enumeration
+## 🛡 4. Security & Best Practices
 
-## Testing
-Feature tests included for:
-- Registration
-- Login
-- Forgot password
-- Reset password
+-   **Rate Limiting**:
+    -   Authentication (Login/Register): **10 requests/min**
+    -   Password Resets: **5 requests/min**
+-   **Validation**: Strict input validation with clear JSON error messages.
+*   **Data Protection**: All passwords are hashed using **Bcrypt**.
+*   **Role Isolation**: Users cannot login as a role they aren't registered for.
 
-Run tests:
+---
+
+## 🧪 5. Testing
+
+The project includes a comprehensive test suite covering all authentication flows.
+
 ```bash
+# Run all tests
 php artisan test
 ```
+
+Currently active tests:
+-   `✓` Student/Teacher Registration
+-   `✓` Multi-credential Login (Email/ID)
+-   `✓` Secure Logout
+-   `✓` Password Reset Lifecycle
