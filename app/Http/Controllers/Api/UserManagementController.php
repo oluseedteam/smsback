@@ -13,6 +13,9 @@ use Illuminate\Validation\Rule;
 
 class UserManagementController extends Controller
 {
+    /**
+     * List all users filtered by their role (admin, teacher, student).
+     */
     public function index(Request $request): JsonResponse
     {
         $payload = $request->validate([
@@ -26,6 +29,9 @@ class UserManagementController extends Controller
         return response()->json($users);
     }
 
+    /**
+     * Create a new user account (admin, teacher, or student).
+     */
     public function store(Request $request): JsonResponse
     {
         $payload = $request->validate([
@@ -61,6 +67,9 @@ class UserManagementController extends Controller
         return response()->json($this->formatUser($user), 201);
     }
 
+    /**
+     * Get details of a specific user.
+     */
     public function show(string $role, int $id): JsonResponse
     {
         $user = $this->resolveModel($role)::query()->findOrFail($id);
@@ -68,6 +77,9 @@ class UserManagementController extends Controller
         return response()->json($this->formatUser($user));
     }
 
+    /**
+     * Update user profile information.
+     */
     public function update(Request $request, string $role, int $id): JsonResponse
     {
         $user = $this->resolveModel($role)::query()->findOrFail($id);
@@ -113,6 +125,9 @@ class UserManagementController extends Controller
         return response()->json($this->formatUser($user->fresh()));
     }
 
+    /**
+     * Delete a user account.
+     */
     public function destroy(string $role, int $id): JsonResponse
     {
         $user = $this->resolveModel($role)::query()->findOrFail($id);

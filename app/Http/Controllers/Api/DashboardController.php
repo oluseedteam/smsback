@@ -13,6 +13,9 @@ class DashboardController extends Controller
     {
     }
 
+    /**
+     * Get a dashboard summary tailored to the authenticated user's role.
+     */
     public function summary(Request $request): JsonResponse
     {
         return response()->json([

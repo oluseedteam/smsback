@@ -9,6 +9,11 @@ use Illuminate\Http\Request;
 
 class ResultController extends Controller
 {
+    /**
+     * List academic results with optional filtering.
+     *
+     * Students see only their results. Teachers/Admins can filter by student, class, and subject.
+     */
     public function index(Request $request): JsonResponse
     {
         $query = Result::query()->with([
@@ -35,6 +40,9 @@ class ResultController extends Controller
         return response()->json($query->latest('graded_at')->paginate(30));
     }
 
+    /**
+     * Create a new academic result record.
+     */
     public function store(Request $request): JsonResponse
     {
         $payload = $request->validate([
@@ -58,6 +66,9 @@ class ResultController extends Controller
         return response()->json($result->load(['student:id,full_name', 'subject:id,name']), 201);
     }
 
+    /**
+     * Update an existing academic result record.
+     */
     public function update(Request $request, Result $result): JsonResponse
     {
         $payload = $request->validate([
@@ -78,6 +89,9 @@ class ResultController extends Controller
         return response()->json($result->fresh()->load(['student:id,full_name', 'subject:id,name']));
     }
 
+    /**
+     * Delete an academic result record.
+     */
     public function destroy(Result $result): JsonResponse
     {
         $result->delete();

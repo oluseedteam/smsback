@@ -9,6 +9,9 @@ use Illuminate\Http\Request;
 
 class SchoolClassController extends Controller
 {
+    /**
+     * List all school classes with their assigned teachers and subjects.
+     */
     public function index(Request $request): JsonResponse
     {
         $query = SchoolClass::query()->with(['teacher:id,full_name', 'subjects:id,name,code']);
@@ -20,6 +23,9 @@ class SchoolClassController extends Controller
         return response()->json($query->latest()->get());
     }
 
+    /**
+     * Create a new school class and optionally assign students and subjects.
+     */
     public function store(Request $request): JsonResponse
     {
         $payload = $request->validate([
@@ -46,6 +52,9 @@ class SchoolClassController extends Controller
         return response()->json($class->load(['teacher:id,full_name', 'students:id,full_name', 'subjects:id,name,code']), 201);
     }
 
+    /**
+     * Get detailed information about a specific school class.
+     */
     public function show(SchoolClass $class): JsonResponse
     {
         return response()->json($class->load([
@@ -55,6 +64,9 @@ class SchoolClassController extends Controller
         ]));
     }
 
+    /**
+     * Update school class details and manage student/subject assignments.
+     */
     public function update(Request $request, SchoolClass $class): JsonResponse
     {
         $payload = $request->validate([
@@ -85,6 +97,9 @@ class SchoolClassController extends Controller
         return response()->json($class->load(['teacher:id,full_name', 'students:id,full_name', 'subjects:id,name,code']));
     }
 
+    /**
+     * Delete a school class.
+     */
     public function destroy(SchoolClass $class): JsonResponse
     {
         $class->delete();

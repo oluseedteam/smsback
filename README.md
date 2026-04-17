@@ -50,90 +50,60 @@ This API uses **Laravel Sanctum** for secure, stateful, and token-based authenti
 
 ## 🛠 3. API Reference
 
-All routes are prefixed with `/api/auth`.
+Interactive documentation is available at `http://localhost:8000/docs/api` (powered by Scramble).
 
-### 📝 Registration
-`POST /api/auth/register`
+### 🔐 Authentication
+All auth routes are prefixed with `/api/auth`.
 
-Used to create a new Student or Teacher account.
-
-| Field | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `fullName` | String | Yes | User's full name |
-| `email` | String | Yes | Unique email address |
-| `role` | String | Yes | `student` or `teacher` |
-| `studentId` | String | Required if role is `student` | Unique School ID |
-| `employeeId` | String | Required if role is `teacher` | Unique Employee ID |
-| `password` | String | Yes | Min 8 characters |
-| `confirmPassword` | String | Yes | Must match `password` |
-
-**Example Student Request:**
-```json
-{
-  "fullName": "John Doe",
-  "email": "john@school.edu",
-  "role": "student",
-  "studentId": "SCH-2024-001",
-  "password": "securePassword123",
-  "confirmPassword": "securePassword123"
-}
-```
+- `POST /api/auth/register`: Create a new user account.
+- `POST /api/auth/login`: Authenticate and receive a Bearer token.
+- `POST /api/auth/forgot-password`: Request a password reset link.
+- `POST /api/auth/reset-password`: Reset password using a token.
+- `POST /api/auth/logout`: Revoke the current access token (Requires Auth).
 
 ---
 
-### 🔑 Login
-`POST /api/auth/login`
-
-Returns an access token on success.
-
-| Field | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `role` | String | Yes | `student`, `teacher`, or `admin` |
-| `login` | String | Yes | **Email** (or Student/Employee ID for non-admins) |
-| `password` | String | Yes | User's password |
-
-**Example Request:**
-```json
-{
-  "role": "admin",
-  "login": "admin@school.edu",
-  "password": "secureAdminPassword"
-}
-```
+### 📊 Dashboard
+- `GET /api/dashboard/summary`: Get a role-specific overview of system data (Requires Auth).
 
 ---
 
-### 📩 Forgot Password
-`POST /api/auth/forgot-password`
-
-Initiates the password reset flow.
-
-| Field | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `email` | String | Yes | Registered email address |
-
-**Note:** Returns a generic success message even if the email doesn't exist for security reasons.
+### 👥 User Management (Admin Only)
+All routes require Admin role.
+- `GET /api/users?role={admin|teacher|student}`: List and search users.
+- `POST /api/users`: Create a new user manually.
+- `GET /api/users/{role}/{id}`: View specific user details.
+- `PATCH /api/users/{role}/{id}`: Update user information.
+- `DELETE /api/users/{role}/{id}`: Remove a user account.
 
 ---
 
-### 🔄 Reset Password
-`POST /api/auth/reset-password`
-
-Completes the password reset using the token received via email.
-
-| Field | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `email` | String | Yes | Registered email address |
-| `token` | String | Yes | Token from the reset email |
-| `password` | String | Yes | New password |
-| `confirmPassword` | String | Yes | Confirm new password |
+### 🏫 School Management
+- **Classes**:
+  - `GET /api/classes`: List all school classes.
+  - `POST /api/classes`: Create a new class (Admin).
+  - `GET /api/classes/{id}`: View class details, students, and subjects.
+  - `PATCH /api/classes/{id}`: Update class info or assignments.
+  - `DELETE /api/classes/{id}`: Delete a class.
+- **Subjects**:
+  - `GET /api/subjects`: List all subjects.
+  - `POST /api/subjects`: Create a new subject.
+  - `GET /api/subjects/{id}`: View subject details.
+  - `PATCH /api/subjects/{id}`: Update subject info.
+  - `DELETE /api/subjects/{id}`: Delete a subject.
 
 ---
 
-### 🚪 Logout
-`POST /api/auth/logout`
-
-**Requires Bearer Token.** Revokes the current access token.
+### 📝 Academic Management
+- **Attendance**:
+  - `GET /api/attendance`: Filter and view attendance records.
+  - `POST /api/attendance/bulk`: Submit attendance records in bulk.
+  - `PATCH /api/attendance/{id}`: Update a specific attendance entry.
+- **Results**:
+  - `GET /api/results`: List and filter academic results.
+  - `POST /api/results`: Grade an assessment.
+  - `PATCH /api/results/{id}`: Update a result entry.
+  - `DELETE /api/results/{id}`: Remove a result.
 
 ---
 

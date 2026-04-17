@@ -29,7 +29,7 @@ return [
         /*
          * Description rendered on the home page of the API documentation (`/docs/api`).
          */
-        'description' => '',
+        'description' => 'The School Management System (SMS) API provides robust endpoints for managing students, teachers, classes, subjects, attendance, and academic results. This API supports role-based access control and streamlined school operations.',
     ],
 
     /*

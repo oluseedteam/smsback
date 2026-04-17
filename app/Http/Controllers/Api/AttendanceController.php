@@ -9,6 +9,11 @@ use Illuminate\Http\Request;
 
 class AttendanceController extends Controller
 {
+    /**
+     * List attendance records with optional filtering.
+     *
+     * Students see only their records. Teachers/Admins can filter by student, class, and date range.
+     */
     public function index(Request $request): JsonResponse
     {
         $query = AttendanceRecord::query()->with([
@@ -38,6 +43,9 @@ class AttendanceController extends Controller
         return response()->json($query->latest('attendance_date')->paginate(30));
     }
 
+    /**
+     * Store or update attendance records in bulk for a class/subject on a specific date.
+     */
     public function storeBulk(Request $request): JsonResponse
     {
         $payload = $request->validate([
@@ -73,6 +81,9 @@ class AttendanceController extends Controller
         return response()->json(['message' => 'Attendance saved successfully.']);
     }
 
+    /**
+     * Update a single attendance record.
+     */
     public function update(Request $request, AttendanceRecord $attendance): JsonResponse
     {
         $payload = $request->validate([

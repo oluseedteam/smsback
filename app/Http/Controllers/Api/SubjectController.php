@@ -10,11 +10,17 @@ use Illuminate\Validation\Rule;
 
 class SubjectController extends Controller
 {
+    /**
+     * List all available subjects.
+     */
     public function index(): JsonResponse
     {
         return response()->json(Subject::query()->latest()->get());
     }
 
+    /**
+     * Create a new subject with a unique code.
+     */
     public function store(Request $request): JsonResponse
     {
         $payload = $request->validate([
@@ -27,11 +33,17 @@ class SubjectController extends Controller
         return response()->json($subject, 201);
     }
 
+    /**
+     * Get details of a subject and its associated classes.
+     */
     public function show(Subject $subject): JsonResponse
     {
         return response()->json($subject->load('classes:id,name,grade_level'));
     }
 
+    /**
+     * Update subject name or code.
+     */
     public function update(Request $request, Subject $subject): JsonResponse
     {
         $payload = $request->validate([
@@ -44,6 +56,9 @@ class SubjectController extends Controller
         return response()->json($subject);
     }
 
+    /**
+     * Delete a subject.
+     */
     public function destroy(Subject $subject): JsonResponse
     {
         $subject->delete();
