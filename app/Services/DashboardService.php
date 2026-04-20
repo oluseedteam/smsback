@@ -22,6 +22,22 @@ class DashboardService
 
     private function adminSummary(): array
     {
+        $attendanceHistory = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i)->toDateString();
+            $dayName = now()->subDays($i)->format('l');
+            $count = AttendanceRecord::query()
+                ->whereDate('attendance_date', $date)
+                ->whereIn('status', ['present', 'late', 'excused'])
+                ->count();
+            
+            $attendanceHistory[] = [
+                'day' => strtoupper($dayName),
+                'val' => $count,
+                'date' => $date
+            ];
+        }
+
         return [
             'total_students' => Student::query()->count(),
             'total_teachers' => Teacher::query()->count(),
@@ -30,6 +46,7 @@ class DashboardService
             'attendance_today' => AttendanceRecord::query()
                 ->whereDate('attendance_date', now()->toDateString())
                 ->count(),
+            'attendance_history' => $attendanceHistory,
         ];
     }
 

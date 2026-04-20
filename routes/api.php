@@ -8,6 +8,10 @@ use App\Http\Controllers\Api\ResultController;
 use App\Http\Controllers\Api\SchoolClassController;
 use App\Http\Controllers\Api\SubjectController;
 use App\Http\Controllers\Api\UserManagementController;
+use App\Http\Controllers\Api\AssignmentController;
+use App\Http\Controllers\Api\MessageController;
+use App\Http\Controllers\Api\ResourceController;
+use App\Http\Controllers\Api\CalendarEventController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function (): void {
@@ -51,4 +55,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/my/attendance', [AttendanceController::class, 'index']);
         Route::get('/my/results', [ResultController::class, 'index']);
     });
+
+    // Shared / Role-specific routes for new models
+    Route::apiResource('assignments', AssignmentController::class);
+    Route::apiResource('messages', MessageController::class);
+    Route::apiResource('resources', ResourceController::class);
+    Route::apiResource('calendar-events', CalendarEventController::class);
 });
