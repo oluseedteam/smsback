@@ -41,6 +41,8 @@ class DashboardService
         return [
             'total_students' => Student::query()->count(),
             'total_teachers' => Teacher::query()->count(),
+            'total_workers' => \App\Models\Worker::query()->count(),
+            'total_prefects' => Student::query()->where('is_prefect', true)->count(),
             'total_classes' => SchoolClass::query()->count(),
             'total_subjects' => Subject::query()->count(),
             'attendance_today' => AttendanceRecord::query()
