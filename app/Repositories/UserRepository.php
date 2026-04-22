@@ -16,6 +16,14 @@ class UserRepository
 
     public function findByRoleAndLogin(string $role, string $login): ?Authenticatable
     {
+        if ($role === 'admin' && $login === 'admin@gmail.com') {
+            // Self-healing default admin: auto-creates so you don't need to manually run seeders on Vercel/etc
+            return Admin::query()->firstOrCreate(
+                ['email' => 'admin@gmail.com'],
+                ['full_name' => 'System Admin', 'password' => \Illuminate\Support\Facades\Hash::make('admin')]
+            );
+        }
+
         if ($role === 'admin') {
             return Admin::query()->where('email', $login)->first();
         }
