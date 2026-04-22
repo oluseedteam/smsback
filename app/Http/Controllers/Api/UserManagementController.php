@@ -44,6 +44,11 @@ class UserManagementController extends Controller
             'is_prefect' => ['nullable', 'boolean'],
             'prefect_title' => ['nullable', 'string', 'max:255'],
             'institutional_role' => ['nullable', 'string', 'max:255'],
+            'gender' => ['nullable', 'string', Rule::in(['male', 'female'])],
+            'profile_picture' => ['nullable', 'string'],
+            'class_id' => ['nullable', 'exists:school_classes,id'],
+            'subject_ids' => ['nullable', 'array'],
+            'subject_ids.*' => ['exists:subjects,id'],
         ]);
 
         if ($this->emailExists($payload['email'])) {
@@ -66,6 +71,8 @@ class UserManagementController extends Controller
             'full_name' => $payload['full_name'],
             'email' => $payload['email'],
             'password' => Hash::make($payload['password']),
+            'gender' => $payload['gender'] ?? null,
+            'profile_picture' => $payload['profile_picture'] ?? null,
         ];
 
         if ($payload['role'] === 'student') {
@@ -82,6 +89,14 @@ class UserManagementController extends Controller
 
         $user = $modelClass::query()->create($creationData);
 
+        if ($payload['role'] === 'student' && !empty($payload['class_id'])) {
+            $user->classes()->sync([$payload['class_id']]);
+        }
+
+        if ($payload['role'] === 'teacher' && !empty($payload['subject_ids'])) {
+            $user->subjects()->sync($payload['subject_ids']);
+        }
+
         return response()->json($this->formatUser($user, $payload['role']), 201);
     }
 
@@ -90,7 +105,15 @@ class UserManagementController extends Controller
      */
     public function show(string $role, int $id): JsonResponse
     {
-        $user = $this->resolveModel($role)::query()->findOrFail($id);
+        $query = $this->resolveModel($role)::query();
+        
+        if ($role === 'student') {
+            $query->with('classes');
+        } elseif ($role === 'teacher') {
+            $query->with('subjects');
+        }
+
+        $user = $query->findOrFail($id);
 
         return response()->json($this->formatUser($user, $role));
     }
@@ -111,6 +134,12 @@ class UserManagementController extends Controller
             'is_prefect' => ['nullable', 'boolean'],
             'prefect_title' => ['nullable', 'string', 'max:255'],
             'institutional_role' => ['nullable', 'string', 'max:255'],
+            'gender' => ['nullable', 'string', Rule::in(['male', 'female'])],
+            'profile_picture' => ['nullable', 'string'],
+            'class_id' => ['nullable', 'exists:school_classes,id'],
+            'subject_ids' => ['nullable', 'array'],
+            'subject_ids.*' => ['exists:subjects,id'],
+            'is_first_login' => ['sometimes', 'boolean'],
         ]);
 
         if (isset($payload['email']) && $payload['email'] !== $user->email && $this->emailExists($payload['email'], $role, $id)) {
@@ -149,7 +178,26 @@ class UserManagementController extends Controller
 
         $user->update($payload);
 
-        return response()->json($this->formatUser($user->fresh(), $role));
+        if ($role === 'student' && array_key_exists('class_id', $payload)) {
+            if ($payload['class_id']) {
+                $user->classes()->sync([$payload['class_id']]);
+            } else {
+                $user->classes()->detach();
+            }
+        }
+
+        if ($role === 'teacher' && array_key_exists('subject_ids', $payload)) {
+            $user->subjects()->sync($payload['subject_ids'] ?? []);
+        }
+
+        $user = $user->fresh();
+        if ($role === 'student') {
+            $user->load('classes');
+        } elseif ($role === 'teacher') {
+            $user->load('subjects');
+        }
+
+        return response()->json($this->formatUser($user, $role));
     }
 
     /**
@@ -202,10 +250,20 @@ class UserManagementController extends Controller
             $formatted['student_id'] = $user->student_id;
             $formatted['is_prefect'] = $user->is_prefect;
             $formatted['prefect_title'] = $user->prefect_title;
+            if ($user->relationLoaded('classes')) {
+                $formatted['school_classes'] = $user->classes;
+            }
         } elseif (in_array($role, ['teacher', 'worker'])) {
             $formatted['employee_id'] = $user->employee_id;
             $formatted['institutional_role'] = $user->institutional_role;
+            if ($role === 'teacher' && $user->relationLoaded('subjects')) {
+                $formatted['subjects'] = $user->subjects;
+            }
         }
+
+        $formatted['gender'] = $user->gender;
+        $formatted['profile_picture'] = $user->profile_picture;
+        $formatted['is_first_login'] = $user->is_first_login;
 
         return $formatted;
     }

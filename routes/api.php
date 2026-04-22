@@ -23,6 +23,7 @@ Route::prefix('auth')->group(function (): void {
     Route::middleware('throttle:password-reset')->post('/reset-password', [PasswordResetController::class, 'resetPassword']);
 
     Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);
+    Route::middleware('auth:sanctum')->patch('/profile', [AuthController::class, 'updateProfile']);
 });
 
 Route::middleware('auth:sanctum')->group(function (): void {

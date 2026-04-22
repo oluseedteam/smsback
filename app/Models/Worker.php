@@ -14,6 +14,9 @@ class Worker extends Model
         'email',
         'password',
         'institutional_role',
+        'gender',
+        'profile_picture',
+        'is_first_login',
     ];
 
     protected $hidden = [

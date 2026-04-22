@@ -82,6 +82,30 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * Update the logged-in user's profile picture and remove the first_login flag.
+     */
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'profile_picture' => ['required', 'string'],
+        ]);
+
+        $user = $request->user();
+        $user->update([
+            'profile_picture' => $payload['profile_picture'],
+            'is_first_login' => false,
+        ]);
+
+        // Infer role from model class name
+        $role = strtolower(class_basename($user));
+
+        return response()->json([
+            'message' => 'Profile updated successfully.',
+            'user' => $this->buildUserPayload($user->fresh(), $role),
+        ]);
+    }
+
     private function buildUserPayload($user, string $role): array
     {
         $idPayload = match ($role) {
@@ -95,6 +119,8 @@ class AuthController extends Controller
             'full_name' => $user->full_name,
             'email' => $user->email,
             'role' => $role,
+            'profile_picture' => $user->profile_picture,
+            'is_first_login' => $user->is_first_login,
             ...$idPayload,
         ];
     }

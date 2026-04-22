@@ -21,6 +21,9 @@ class Teacher extends Authenticatable
         'employee_id',
         'email',
         'password',
+        'gender',
+        'profile_picture',
+        'is_first_login',
     ];
 
     protected $hidden = [
