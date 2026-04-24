@@ -20,7 +20,7 @@ class AuthService
             'password' => Hash::make($payload['password']),
         ];
 
-        if ($payload['role'] === 'teacher') {
+        if ($payload['role'] === 'teacher' || $payload['role'] === 'worker') {
             $data['employee_id'] = $payload['employeeId'];
         } else {
             $data['student_id'] = $payload['studentId'];

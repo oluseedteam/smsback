@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Models\Admin;
 use App\Models\Student;
 use App\Models\Teacher;
+use App\Models\Worker;
 use Illuminate\Contracts\Auth\Authenticatable;
 
 class UserRepository
@@ -28,7 +29,7 @@ class UserRepository
             return Admin::query()->where('email', $login)->first();
         }
 
-        $idColumn = $role === 'teacher' ? 'employee_id' : 'student_id';
+        $idColumn = in_array($role, ['teacher', 'worker']) ? 'employee_id' : 'student_id';
 
         return $this->modelForRole($role)::query()
             ->where(function ($query) use ($login, $idColumn) {
@@ -42,7 +43,8 @@ class UserRepository
     {
         return Admin::query()->where('email', $email)->first()
             ?? Student::query()->where('email', $email)->first()
-            ?? Teacher::query()->where('email', $email)->first();
+            ?? Teacher::query()->where('email', $email)->first()
+            ?? Worker::query()->where('email', $email)->first();
     }
 
     public function modelForRole(string $role): string
@@ -50,6 +52,7 @@ class UserRepository
         return match ($role) {
             'teacher' => Teacher::class,
             'admin' => Admin::class,
+            'worker' => Worker::class,
             default => Student::class,
         };
     }
