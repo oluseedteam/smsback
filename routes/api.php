@@ -30,6 +30,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
 
     Route::middleware('role:admin')->group(function (): void {
+        Route::get('/logs', [\App\Http\Controllers\Api\AdminLogController::class, 'index']);
+        Route::delete('/logs', [\App\Http\Controllers\Api\AdminLogController::class, 'clear']);
+
         Route::get('/users', [UserManagementController::class, 'index']);
         Route::post('/users', [UserManagementController::class, 'store']);
         Route::get('/users/{role}/{id}', [UserManagementController::class, 'show']);

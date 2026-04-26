@@ -22,7 +22,7 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'role' => ['required', Rule::in(['student', 'teacher', 'admin'])],
+            'role' => ['required', Rule::in(['student', 'teacher', 'admin', 'worker'])],
             'login' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
         ];
