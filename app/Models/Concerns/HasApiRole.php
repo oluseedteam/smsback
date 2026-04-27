@@ -9,6 +9,7 @@ trait HasApiRole
         return match (class_basename($this)) {
             'Teacher' => 'teacher',
             'Admin' => 'admin',
+            'Worker' => 'worker',
             default => 'student',
         };
     }

@@ -56,6 +56,7 @@ class AuthController extends Controller
 
         try {
             [$user, $token] = $this->authService->login($payload);
+            \Illuminate\Support\Facades\Log::info("User logged in: {$user->email} (Role: {$payload['role']})");
         } catch (AuthenticationException) {
             return response()->json([
                 'message' => 'Invalid credentials.',
@@ -109,8 +110,8 @@ class AuthController extends Controller
     private function buildUserPayload($user, string $role): array
     {
         $idPayload = match ($role) {
-            'teacher' => ['employee_id' => $user->employee_id],
-            'student' => ['student_id' => $user->student_id],
+            'teacher', 'worker' => ['employee_id' => $user->employee_id ?? null],
+            'student' => ['student_id' => $user->student_id ?? null],
             default => [],
         };
 

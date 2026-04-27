@@ -64,4 +64,5 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::apiResource('messages', MessageController::class);
     Route::apiResource('resources', ResourceController::class);
     Route::apiResource('calendar-events', CalendarEventController::class);
+    Route::apiResource('teacher-classes', \App\Http\Controllers\TeacherClassController::class);
 });
