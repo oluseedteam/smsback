@@ -89,14 +89,18 @@ class AuthController extends Controller
     public function updateProfile(Request $request): JsonResponse
     {
         $payload = $request->validate([
-            'profile_picture' => ['required', 'string'],
+            'profile_picture' => ['nullable', 'string'],
+            'is_skipped' => ['nullable', 'boolean'],
         ]);
 
         $user = $request->user();
-        $user->update([
-            'profile_picture' => $payload['profile_picture'],
-            'is_first_login' => false,
-        ]);
+        
+        $updateData = ['is_first_login' => false];
+        if (isset($payload['profile_picture'])) {
+            $updateData['profile_picture'] = $payload['profile_picture'];
+        }
+
+        $user->update($updateData);
 
         // Infer role from model class name
         $role = strtolower(class_basename($user));
