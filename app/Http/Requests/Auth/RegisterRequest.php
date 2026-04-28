@@ -79,6 +79,7 @@ class RegisterRequest extends FormRequest
                 },
             ],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'department' => ['nullable', Rule::in(['science', 'art', 'commercial'])],
         ];
     }
 

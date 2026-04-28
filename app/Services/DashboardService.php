@@ -76,6 +76,50 @@ class DashboardService
             ->selectRaw('AVG((score / NULLIF(max_score, 0)) * 100) as avg_score')
             ->value('avg_score');
 
+        // Star Student: student with the highest average score
+        $starStudent = null;
+        $topStudents = Student::query()
+            ->whereHas('results')
+            ->get()
+            ->map(function ($student) {
+                $avg = Result::query()
+                    ->where('student_id', $student->id)
+                    ->selectRaw('AVG((score / NULLIF(max_score, 0)) * 100) as avg_score')
+                    ->value('avg_score');
+                return [
+                    'id' => $student->id,
+                    'full_name' => $student->full_name,
+                    'profile_picture' => $student->profile_picture,
+                    'avg_score' => round((float)($avg ?? 0), 2),
+                ];
+            })
+            ->sortByDesc('avg_score')
+            ->first();
+        if ($topStudents) {
+            $starStudent = $topStudents;
+        }
+
+        // Achievement points: sum of science homework scores for this student
+        $scienceSubjectId = \App\Models\Subject::query()
+            ->where('name', 'like', '%science%')
+            ->orWhere('name', 'like', '%Science%')
+            ->value('id');
+        $achievementPoints = 0;
+        if ($scienceSubjectId) {
+            $achievementPoints = (int) Result::query()
+                ->where('student_id', $studentId)
+                ->where('subject_id', $scienceSubjectId)
+                ->where('assessment_type', 'homework')
+                ->sum('score');
+        }
+
+        // Upcoming events
+        $events = \App\Models\CalendarEvent::query()
+            ->where('start_time', '>=', now())
+            ->orderBy('start_time')
+            ->limit(5)
+            ->get(['id', 'title', 'start_time', 'end_time', 'description']);
+
         return [
             'my_classes' => SchoolClass::query()
                 ->whereHas('students', fn ($query) => $query->where('students.id', $studentId))
@@ -85,6 +129,9 @@ class DashboardService
             'subjects_tracked' => Subject::query()
                 ->whereHas('results', fn ($query) => $query->where('student_id', $studentId))
                 ->count(),
+            'star_student' => $starStudent,
+            'achievement_points' => $achievementPoints,
+            'upcoming_events' => $events,
         ];
     }
 

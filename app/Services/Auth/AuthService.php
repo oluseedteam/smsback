@@ -24,6 +24,9 @@ class AuthService
             $data['employee_id'] = $payload['employeeId'];
         } else {
             $data['student_id'] = $payload['studentId'];
+            if (!empty($payload['department'])) {
+                $data['department'] = $payload['department'];
+            }
         }
 
         $user = $this->users->create($payload['role'], $data);
