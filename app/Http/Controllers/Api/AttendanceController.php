@@ -32,6 +32,10 @@ class AttendanceController extends Controller
             $query->where('school_class_id', $request->integer('school_class_id'));
         }
 
+        if ($request->filled('term')) {
+            $query->where('term', $request->input('term'));
+        }
+
         if ($request->filled('date_from')) {
             $query->whereDate('attendance_date', '>=', $request->date('date_from'));
         }
@@ -52,6 +56,7 @@ class AttendanceController extends Controller
             'attendance_date' => ['required', 'date'],
             'school_class_id' => ['required', 'exists:school_classes,id'],
             'subject_id' => ['nullable', 'exists:subjects,id'],
+            'term' => ['required', 'in:1st Term,2nd Term,3rd Term'],
             'records' => ['required', 'array', 'min:1'],
             'records.*.student_id' => ['required', 'exists:students,id'],
             'records.*.status' => ['required', 'in:present,absent,late,excused'],
@@ -74,6 +79,7 @@ class AttendanceController extends Controller
                     'arrival_time' => $record['arrival_time'] ?? null,
                     'note' => $record['note'] ?? null,
                     'marked_by_teacher_id' => $teacherId,
+                    'term' => $payload['term'],
                 ]
             );
         }

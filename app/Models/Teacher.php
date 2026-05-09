@@ -4,8 +4,10 @@ namespace App\Models;
 
 use App\Models\Concerns\HasApiRole;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -24,6 +26,8 @@ class Teacher extends Authenticatable
         'gender',
         'profile_picture',
         'is_first_login',
+        'can_create_students',
+        'class_teacher_of',
     ];
 
     protected $hidden = [
@@ -36,12 +40,18 @@ class Teacher extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'can_create_students' => 'boolean',
         ];
     }
 
     public function classes(): HasMany
     {
         return $this->hasMany(SchoolClass::class);
+    }
+
+    public function assignedClass(): BelongsTo
+    {
+        return $this->belongsTo(SchoolClass::class, 'class_teacher_of');
     }
 
     public function subjects(): BelongsToMany
@@ -59,5 +69,10 @@ class Teacher extends Authenticatable
     public function results(): HasMany
     {
         return $this->hasMany(Result::class);
+    }
+
+    public function cbtTests(): HasMany
+    {
+        return $this->hasMany(CbtTest::class);
     }
 }

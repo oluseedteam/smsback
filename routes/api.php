@@ -3,10 +3,13 @@
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\PasswordResetController;
 use App\Http\Controllers\Api\AttendanceController;
+use App\Http\Controllers\Api\CbtController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\FinanceController;
 use App\Http\Controllers\Api\ResultController;
 use App\Http\Controllers\Api\SchoolClassController;
 use App\Http\Controllers\Api\SubjectController;
+use App\Http\Controllers\Api\TeacherStudentController;
 use App\Http\Controllers\Api\UserManagementController;
 use App\Http\Controllers\Api\AssignmentController;
 use App\Http\Controllers\Api\MessageController;
@@ -36,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/subjects', [SubjectController::class, 'index']);
     Route::get('/subjects/{subject}', [SubjectController::class, 'show']);
 
+    // ─── Admin Routes ───────────────────────────────────────
     Route::middleware('role:admin')->group(function (): void {
         Route::get('/logs', [\App\Http\Controllers\Api\AdminLogController::class, 'index']);
         Route::delete('/logs', [\App\Http\Controllers\Api\AdminLogController::class, 'clear']);
@@ -53,8 +57,16 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/subjects', [SubjectController::class, 'store']);
         Route::put('/subjects/{subject}', [SubjectController::class, 'update']);
         Route::delete('/subjects/{subject}', [SubjectController::class, 'destroy']);
+
+        // Finance - Admin
+        Route::get('/admin/fees', [FinanceController::class, 'feeIndex']);
+        Route::post('/admin/fees', [FinanceController::class, 'feeStore']);
+        Route::put('/admin/fees/{fee}', [FinanceController::class, 'feeUpdate']);
+        Route::delete('/admin/fees/{fee}', [FinanceController::class, 'feeDestroy']);
+        Route::get('/admin/payments', [FinanceController::class, 'allPayments']);
     });
 
+    // ─── Teacher & Admin Routes ─────────────────────────────
     Route::middleware('role:admin,teacher')->group(function (): void {
         Route::get('/attendance', [AttendanceController::class, 'index']);
         Route::post('/attendance/bulk', [AttendanceController::class, 'storeBulk']);
@@ -66,10 +78,43 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::delete('/results/{result}', [ResultController::class, 'destroy']);
     });
 
+    // ─── Teacher Routes ─────────────────────────────────────
+    Route::middleware('role:teacher')->group(function (): void {
+        // Teacher creating students
+        Route::get('/teacher/my-students', [TeacherStudentController::class, 'index']);
+        Route::post('/teacher/create-student', [TeacherStudentController::class, 'store']);
+
+        // CBT - Teacher management
+        Route::get('/cbt-tests', [CbtController::class, 'index']);
+        Route::post('/cbt-tests', [CbtController::class, 'store']);
+        Route::get('/cbt-tests/{cbtTest}', [CbtController::class, 'show']);
+        Route::put('/cbt-tests/{cbtTest}', [CbtController::class, 'update']);
+        Route::delete('/cbt-tests/{cbtTest}', [CbtController::class, 'destroy']);
+        Route::post('/cbt-tests/{cbtTest}/questions', [CbtController::class, 'storeQuestion']);
+        Route::post('/cbt-tests/{cbtTest}/questions/bulk', [CbtController::class, 'storeBulkQuestions']);
+        Route::put('/cbt-questions/{question}', [CbtController::class, 'updateQuestion']);
+        Route::delete('/cbt-questions/{question}', [CbtController::class, 'destroyQuestion']);
+        Route::get('/cbt-tests/{cbtTest}/results', [CbtController::class, 'testResults']);
+    });
+
+    // ─── Student Routes ─────────────────────────────────────
     Route::middleware('role:student')->group(function (): void {
         Route::get('/my/attendance', [AttendanceController::class, 'index']);
         Route::get('/my/results', [ResultController::class, 'index']);
         Route::get('/my/classes', [\App\Http\Controllers\Api\StudentClassController::class, 'index']);
+
+        // Finance - Student
+        Route::get('/student/finance', [FinanceController::class, 'studentFinance']);
+        Route::post('/student/payment/initialize', [FinanceController::class, 'initializePayment']);
+        Route::post('/student/payment/verify', [FinanceController::class, 'verifyPayment']);
+        Route::post('/student/payment/pay-from-wallet', [FinanceController::class, 'payFeeFromWallet']);
+
+        // CBT - Student
+        Route::get('/student/cbt-tests', [CbtController::class, 'index']);
+        Route::post('/student/cbt-tests/{cbtTest}/start', [CbtController::class, 'startExam']);
+        Route::post('/student/cbt-tests/{cbtTest}/submit', [CbtController::class, 'submitExam']);
+        Route::get('/student/cbt-tests/{cbtTest}/result', [CbtController::class, 'myResult']);
+        Route::get('/student/cbt-counts', [CbtController::class, 'classCounts']);
     });
 
     // Shared / Role-specific routes for new models

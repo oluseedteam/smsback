@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
+use App\Models\AttendanceRecord;
 use App\Models\Student;
 use App\Models\Teacher;
 use Illuminate\Http\JsonResponse;
@@ -49,6 +50,9 @@ class UserManagementController extends Controller
             'class_id' => ['nullable', 'exists:school_classes,id'],
             'subject_ids' => ['nullable', 'array'],
             'subject_ids.*' => ['exists:subjects,id'],
+            'can_create_students' => ['nullable', 'boolean'],
+            'class_teacher_of' => ['nullable', 'exists:school_classes,id'],
+            'department' => ['nullable', 'string', 'max:100'],
         ]);
 
         if ($this->emailExists($payload['email'])) {
@@ -79,9 +83,12 @@ class UserManagementController extends Controller
             $creationData['student_id'] = $payload['student_id'] ?? null;
             $creationData['is_prefect'] = $payload['is_prefect'] ?? false;
             $creationData['prefect_title'] = $payload['prefect_title'] ?? null;
+            $creationData['department'] = $payload['department'] ?? null;
         } elseif ($payload['role'] === 'teacher') {
             $creationData['employee_id'] = $payload['employee_id'] ?? null;
             $creationData['institutional_role'] = $payload['institutional_role'] ?? null;
+            $creationData['can_create_students'] = $payload['can_create_students'] ?? false;
+            $creationData['class_teacher_of'] = $payload['class_teacher_of'] ?? null;
         } elseif ($payload['role'] === 'worker') {
             $creationData['employee_id'] = $payload['employee_id'] ?? null;
             $creationData['institutional_role'] = $payload['institutional_role'] ?? null;
@@ -110,12 +117,43 @@ class UserManagementController extends Controller
         if ($role === 'student') {
             $query->with('classes');
         } elseif ($role === 'teacher') {
-            $query->with('subjects');
+            $query->with(['subjects', 'assignedClass']);
         }
 
         $user = $query->findOrFail($id);
+        $formatted = $this->formatUser($user, $role);
 
-        return response()->json($this->formatUser($user, $role));
+        // Include attendance data for students
+        if ($role === 'student') {
+            $attendance = AttendanceRecord::where('student_id', $id)
+                ->with(['schoolClass:id,name', 'subject:id,name'])
+                ->orderBy('attendance_date', 'desc')
+                ->get();
+
+            $presentCount = $attendance->where('status', 'present')->count();
+            $absentCount = $attendance->where('status', 'absent')->count();
+            $lateCount = $attendance->where('status', 'late')->count();
+            $total = $attendance->count();
+            $rate = $total > 0 ? round(($presentCount / $total) * 100) : 100;
+
+            $formatted['attendance'] = [
+                'records' => $attendance,
+                'summary' => [
+                    'present' => $presentCount,
+                    'absent' => $absentCount,
+                    'late' => $lateCount,
+                    'total' => $total,
+                    'rate' => $rate,
+                ],
+                'by_term' => [
+                    '1st Term' => $this->termAttendanceSummary($attendance, '1st Term'),
+                    '2nd Term' => $this->termAttendanceSummary($attendance, '2nd Term'),
+                    '3rd Term' => $this->termAttendanceSummary($attendance, '3rd Term'),
+                ],
+            ];
+        }
+
+        return response()->json($formatted);
     }
 
     /**
@@ -250,14 +288,22 @@ class UserManagementController extends Controller
             $formatted['student_id'] = $user->student_id;
             $formatted['is_prefect'] = $user->is_prefect;
             $formatted['prefect_title'] = $user->prefect_title;
+            $formatted['department'] = $user->department;
             if ($user->relationLoaded('classes')) {
                 $formatted['school_classes'] = $user->classes;
             }
         } elseif (in_array($role, ['teacher', 'worker'])) {
             $formatted['employee_id'] = $user->employee_id;
             $formatted['institutional_role'] = $user->institutional_role;
-            if ($role === 'teacher' && $user->relationLoaded('subjects')) {
-                $formatted['subjects'] = $user->subjects;
+            if ($role === 'teacher') {
+                $formatted['can_create_students'] = $user->can_create_students ?? false;
+                $formatted['class_teacher_of'] = $user->class_teacher_of;
+                if ($user->relationLoaded('subjects')) {
+                    $formatted['subjects'] = $user->subjects;
+                }
+                if ($user->relationLoaded('assignedClass')) {
+                    $formatted['assigned_class'] = $user->assignedClass;
+                }
             }
         }
 
@@ -266,5 +312,22 @@ class UserManagementController extends Controller
         $formatted['is_first_login'] = $user->is_first_login;
 
         return $formatted;
+    }
+
+    private function termAttendanceSummary($attendance, string $term): array
+    {
+        $termRecords = $attendance->where('term', $term);
+        $present = $termRecords->where('status', 'present')->count();
+        $absent = $termRecords->where('status', 'absent')->count();
+        $late = $termRecords->where('status', 'late')->count();
+        $total = $termRecords->count();
+
+        return [
+            'present' => $present,
+            'absent' => $absent,
+            'late' => $late,
+            'total' => $total,
+            'rate' => $total > 0 ? round(($present / $total) * 100) : 0,
+        ];
     }
 }
