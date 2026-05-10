@@ -14,6 +14,7 @@ class Assignment extends Model
     protected $fillable = [
         'title',
         'description',
+        'attachment',
         'school_class_id',
         'subject_id',
         'teacher_id',

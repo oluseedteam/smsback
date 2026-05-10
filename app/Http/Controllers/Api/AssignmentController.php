@@ -30,6 +30,7 @@ class AssignmentController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'attachment' => 'nullable|string',
             'school_class_id' => 'required|exists:school_classes,id',
             'subject_id' => 'required|exists:subjects,id',
             'teacher_id' => [$user->role === 'admin' ? 'required' : 'nullable', 'exists:teachers,id'],
@@ -57,6 +58,7 @@ class AssignmentController extends Controller
         $validated = $request->validate([
             'title' => 'sometimes|required|string|max:255',
             'description' => 'nullable|string',
+            'attachment' => 'nullable|string',
             'school_class_id' => 'sometimes|required|exists:school_classes,id',
             'subject_id' => 'sometimes|required|exists:subjects,id',
             'assigned_date' => 'nullable|date',

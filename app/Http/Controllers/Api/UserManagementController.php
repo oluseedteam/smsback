@@ -178,6 +178,9 @@ class UserManagementController extends Controller
             'subject_ids' => ['nullable', 'array'],
             'subject_ids.*' => ['exists:subjects,id'],
             'is_first_login' => ['sometimes', 'boolean'],
+            'can_create_students' => ['nullable', 'boolean'],
+            'class_teacher_of' => ['nullable', 'exists:school_classes,id'],
+            'department' => ['nullable', 'string', 'max:100'],
         ]);
 
         if (isset($payload['email']) && $payload['email'] !== $user->email && $this->emailExists($payload['email'], $role, $id)) {

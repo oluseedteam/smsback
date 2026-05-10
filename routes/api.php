@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\AssignmentController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\ResourceController;
 use App\Http\Controllers\Api\CalendarEventController;
+use App\Http\Controllers\Api\DisputeController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function (): void {
@@ -59,11 +60,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::delete('/subjects/{subject}', [SubjectController::class, 'destroy']);
 
         // Finance - Admin
-        Route::get('/admin/fees', [FinanceController::class, 'feeIndex']);
-        Route::post('/admin/fees', [FinanceController::class, 'feeStore']);
-        Route::put('/admin/fees/{fee}', [FinanceController::class, 'feeUpdate']);
-        Route::delete('/admin/fees/{fee}', [FinanceController::class, 'feeDestroy']);
-        Route::get('/admin/payments', [FinanceController::class, 'allPayments']);
+        Route::get('/fees', [FinanceController::class, 'feeIndex']);
+        Route::post('/fees', [FinanceController::class, 'feeStore']);
+        Route::put('/fees/{fee}', [FinanceController::class, 'feeUpdate']);
+        Route::delete('/fees/{fee}', [FinanceController::class, 'feeDestroy']);
+        Route::get('/payments', [FinanceController::class, 'allPayments']);
+
+        // Admin messaging - broadcast to all teachers or specific teacher
+        Route::post('/admin/broadcast-message', [MessageController::class, 'adminBroadcast']);
     });
 
     // ─── Teacher & Admin Routes ─────────────────────────────
@@ -123,4 +127,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::apiResource('resources', ResourceController::class);
     Route::apiResource('calendar-events', CalendarEventController::class);
     Route::apiResource('teacher-classes', \App\Http\Controllers\TeacherClassController::class);
+
+    // Disputes & Feedback (teachers, students, admins)
+    Route::get('/disputes', [DisputeController::class, 'index']);
+    Route::post('/disputes', [DisputeController::class, 'store']);
+    Route::patch('/disputes/{dispute}', [DisputeController::class, 'update']);
+
+    // Admin profile update
+    Route::patch('/admin/profile', [\App\Http\Controllers\Api\Auth\AuthController::class, 'updateProfile']);
 });

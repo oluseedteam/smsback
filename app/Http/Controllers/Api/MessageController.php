@@ -59,5 +59,47 @@ class MessageController extends Controller
         return $message->load(['sender', 'receiver']);
     }
 
+    /**
+     * Admin broadcasts a message to all teachers or a specific teacher.
+     */
+    public function adminBroadcast(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate([
+            'content' => 'required|string',
+            'teacher_id' => 'nullable|exists:teachers,id', // null = broadcast to all
+        ]);
+
+        $admin = $request->user();
+        $adminClass = get_class($admin);
+
+        if ($validated['teacher_id']) {
+            // Single teacher
+            $msg = Message::create([
+                'sender_id' => $admin->id,
+                'sender_type' => $adminClass,
+                'receiver_id' => $validated['teacher_id'],
+                'receiver_type' => \App\Models\Teacher::class,
+                'content' => $validated['content'],
+            ]);
+            return response()->json(['sent' => 1, 'message' => $msg], 201);
+        }
+
+        // Broadcast to all teachers
+        $teachers = \App\Models\Teacher::all();
+        $count = 0;
+        foreach ($teachers as $teacher) {
+            Message::create([
+                'sender_id' => $admin->id,
+                'sender_type' => $adminClass,
+                'receiver_id' => $teacher->id,
+                'receiver_type' => \App\Models\Teacher::class,
+                'content' => $validated['content'],
+            ]);
+            $count++;
+        }
+
+        return response()->json(['sent' => $count], 201);
+    }
+
     // Messages are usually not updated/deleted in simple SMS, but let's leave them as default
 }
