@@ -87,4 +87,46 @@ class StudentClassController extends Controller
             'subject_scores' => $subjectScores->values(),
         ]);
     }
+
+    public function myTeachers(Request $request): JsonResponse
+    {
+        $student = $request->user();
+        
+        // Get teachers who are class teachers of the student's classes
+        $teachers = \App\Models\Teacher::whereIn('id', function($query) use ($student) {
+            $query->select('teacher_id')
+                  ->from('school_classes')
+                  ->join('class_student', 'school_classes.id', '=', 'class_student.school_class_id')
+                  ->where('class_student.student_id', $student->id)
+                  ->whereNotNull('teacher_id');
+        })->get(['id', 'full_name', 'email', 'profile_picture']);
+
+        return response()->json(['teachers' => $teachers]);
+    }
+
+    public function myClassmates(Request $request): JsonResponse
+    {
+        $student = $request->user();
+        
+        // Get students who share any school class with the current student
+        $classmates = \App\Models\Student::whereIn('id', function($query) use ($student) {
+            $query->select('student_id')
+                  ->from('class_student')
+                  ->whereIn('school_class_id', function($q) use ($student) {
+                      $q->select('school_class_id')
+                        ->from('class_student')
+                        ->where('student_id', $student->id);
+                  });
+        })
+        ->where('id', '!=', $student->id)
+        ->get(['id', 'full_name', 'email', 'profile_picture']);
+
+        return response()->json(['classmates' => $classmates]);
+    }
+
+    public function allTeachers(Request $request): JsonResponse
+    {
+        $teachers = \App\Models\Teacher::get(['id', 'full_name', 'email', 'profile_picture']);
+        return response()->json(['teachers' => $teachers]);
+    }
 }

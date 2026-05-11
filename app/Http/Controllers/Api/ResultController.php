@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Result;
+use App\Models\AssignmentSubmission;
+use App\Models\CbtSubmission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -24,8 +26,61 @@ class ResultController extends Controller
         ]);
 
         if ($request->user()->role === 'student') {
-            $query->where('student_id', $request->user()->id);
-        } elseif ($request->filled('student_id')) {
+            $studentId = $request->user()->id;
+            
+            // 1. Core Results
+            $results = Result::query()
+                ->where('student_id', $studentId)
+                ->with(['subject:id,name,code', 'schoolClass:id,name'])
+                ->latest('graded_at')
+                ->get()
+                ->toArray();
+
+            // 2. Assignment Submissions (Graded only)
+            $assignments = AssignmentSubmission::query()
+                ->where('student_id', $studentId)
+                ->whereNotNull('score')
+                ->with(['assignment.subject:id,name'])
+                ->get()
+                ->map(fn($sub) => [
+                    'id' => 'assignment-' . $sub->id,
+                    'subject' => $sub->assignment->subject,
+                    'assessment_name' => $sub->assignment->title,
+                    'assessment_type' => 'assignment',
+                    'score' => $sub->score,
+                    'max_score' => $sub->assignment->total_points ?? 100,
+                    'remarks' => $sub->feedback,
+                    'created_at' => $sub->submitted_at ?? $sub->created_at,
+                ])
+                ->toArray();
+
+            // 3. CBT Submissions (Released only)
+            $cbts = CbtSubmission::query()
+                ->where('student_id', $studentId)
+                ->where('result_released', true)
+                ->with(['test.subject:id,name'])
+                ->get()
+                ->map(fn($sub) => [
+                    'id' => 'cbt-' . $sub->id,
+                    'subject' => $sub->test->subject,
+                    'assessment_name' => $sub->test->title,
+                    'assessment_type' => 'cbt',
+                    'score' => $sub->score,
+                    'max_score' => $sub->total_questions,
+                    'remarks' => "Correct: {$sub->correct_answers}, Wrong: {$sub->wrong_answers}",
+                    'created_at' => $sub->submitted_at,
+                ])
+                ->toArray();
+
+            $all = array_merge($results, $assignments, $cbts);
+            
+            // Sort by date descending
+            usort($all, fn($a, $b) => strcmp($b['created_at'], $a['created_at']));
+
+            return response()->json($all);
+        }
+
+        if ($request->filled('student_id')) {
             $query->where('student_id', $request->integer('student_id'));
         }
 

@@ -17,7 +17,10 @@ class AssignmentController extends Controller
             $query->where('teacher_id', $user->id);
         } elseif ($user->role === 'student') {
             $classIds = $user->classes->pluck('id');
-            $query->whereIn('school_class_id', $classIds);
+            $query->whereIn('school_class_id', $classIds)
+                  ->with(['submissions' => function($q) use ($user) {
+                      $q->where('student_id', $user->id);
+                  }]);
         }
 
         return $query->paginate($request->input('per_page', 15));
@@ -45,7 +48,10 @@ class AssignmentController extends Controller
 
         $assignment = Assignment::create($validated);
 
-        return response()->json($assignment, 201);
+        return response()->json([
+            'message' => 'Assignment created successfully.',
+            'assignment' => $assignment
+        ], 201);
     }
 
     public function show(Assignment $assignment)
@@ -69,12 +75,71 @@ class AssignmentController extends Controller
 
         $assignment->update($validated);
 
-        return response()->json($assignment);
+        return response()->json([
+            'message' => 'Assignment updated successfully.',
+            'assignment' => $assignment
+        ]);
     }
 
     public function destroy(Assignment $assignment)
     {
         $assignment->delete();
-        return response()->json(null, 204);
+        return response()->json([
+            'message' => 'Assignment deleted successfully.'
+        ], 200);
+    }
+
+    public function submit(Request $request, Assignment $assignment)
+    {
+        $user = $request->user();
+        if ($user->role !== 'student') {
+            return response()->json(['message' => 'Only students can submit assignments.'], 403);
+        }
+
+        $validated = $request->validate([
+            'submission_text' => 'nullable|string',
+            'submission_file' => 'nullable|string'
+        ]);
+
+        $submission = \App\Models\AssignmentSubmission::updateOrCreate(
+            ['assignment_id' => $assignment->id, 'student_id' => $user->id],
+            [
+                'submission_text' => $validated['submission_text'],
+                'submission_file' => $validated['submission_file'],
+                'submitted_at' => now(),
+                'status' => 'pending'
+            ]
+        );
+
+        return response()->json([
+            'message' => 'Assignment submitted successfully.',
+            'submission' => $submission
+        ]);
+    }
+
+    public function submissions(Assignment $assignment)
+    {
+        return response()->json($assignment->submissions()->with('student:id,full_name,student_id')->get());
+    }
+
+    public function grade(Request $request, $submissionId)
+    {
+        $submission = \App\Models\AssignmentSubmission::findOrFail($submissionId);
+        
+        $validated = $request->validate([
+            'score' => 'required|numeric',
+            'feedback' => 'nullable|string'
+        ]);
+
+        $submission->update([
+            'score' => $validated['score'],
+            'feedback' => $validated['feedback'],
+            'status' => 'graded'
+        ]);
+
+        return response()->json([
+            'message' => 'Assignment graded successfully.',
+            'submission' => $submission
+        ]);
     }
 }

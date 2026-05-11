@@ -59,8 +59,9 @@ class TeacherStudentController extends Controller
             'department' => $validated['department'] ?? null,
         ]);
 
-        // Auto-assign to teacher's class
-        $student->classes()->sync([$teacher->class_teacher_of]);
+        // Auto-assign to class
+        $classId = $request->input('class_id') ?? $teacher->class_teacher_of;
+        $student->classes()->sync([$classId]);
 
         return response()->json([
             'message' => 'Student created successfully.',
@@ -80,7 +81,7 @@ class TeacherStudentController extends Controller
         }
 
         $class = SchoolClass::with(['students' => function ($q) {
-            $q->select('students.id', 'full_name', 'student_id', 'email', 'gender', 'department', 'profile_picture');
+            $q->select('students.id', 'full_name', 'students.student_id', 'email', 'gender', 'department', 'profile_picture');
         }])->find($teacher->class_teacher_of);
 
         return response()->json([

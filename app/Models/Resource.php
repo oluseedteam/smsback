@@ -17,6 +17,8 @@ class Resource extends Model
         'url',
         'subject_id',
         'teacher_id',
+        'admin_id',
+        'school_class_id',
     ];
 
     public function subject()
@@ -27,5 +29,15 @@ class Resource extends Model
     public function teacher()
     {
         return $this->belongsTo(Teacher::class);
+    }
+
+    public function admin()
+    {
+        return $this->belongsTo(Admin::class);
+    }
+
+    public function schoolClass()
+    {
+        return $this->belongsTo(SchoolClass::class);
     }
 }

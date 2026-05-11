@@ -84,6 +84,10 @@ class UserManagementController extends Controller
             $creationData['is_prefect'] = $payload['is_prefect'] ?? false;
             $creationData['prefect_title'] = $payload['prefect_title'] ?? null;
             $creationData['department'] = $payload['department'] ?? null;
+            $creationData['parent_name'] = $payload['parent_name'] ?? null;
+            $creationData['parent_phone'] = $payload['parent_phone'] ?? null;
+            $creationData['parent_email'] = $payload['parent_email'] ?? null;
+            $creationData['parent_address'] = $payload['parent_address'] ?? null;
         } elseif ($payload['role'] === 'teacher') {
             $creationData['employee_id'] = $payload['employee_id'] ?? null;
             $creationData['institutional_role'] = $payload['institutional_role'] ?? null;
@@ -101,10 +105,18 @@ class UserManagementController extends Controller
         }
 
         if ($payload['role'] === 'teacher' && !empty($payload['subject_ids'])) {
-            $user->subjects()->sync($payload['subject_ids']);
+            $syncData = [];
+            $classId = $payload['class_teacher_of'] ?? 1;
+            foreach ($payload['subject_ids'] as $sid) {
+                $syncData[$sid] = ['school_class_id' => $classId];
+            }
+            $user->subjects()->sync($syncData);
         }
 
-        return response()->json($this->formatUser($user, $payload['role']), 201);
+        return response()->json([
+            'message' => ucfirst($payload['role']) . ' created successfully.',
+            'user' => $this->formatUser($user, $payload['role'])
+        ], 201);
     }
 
     /**
@@ -153,6 +165,70 @@ class UserManagementController extends Controller
             ];
         }
 
+        // Include activity logs
+        $activities = [];
+        if ($role === 'student') {
+            $submissions = \App\Models\CbtSubmission::where('student_id', $id)
+                ->with('test:id,title')
+                ->latest()
+                ->limit(5)
+                ->get();
+            foreach ($submissions as $s) {
+                $activities[] = [
+                    'title' => 'Completed CBT: ' . ($s->test->title ?? 'Deleted Test'),
+                    'time' => $s->submitted_at ? $s->submitted_at->diffForHumans() : 'Just now',
+                    'score' => $s->score . '%'
+                ];
+            }
+            $results = \App\Models\Result::where('student_id', $id)
+                ->with('subject:id,name')
+                ->latest()
+                ->limit(5)
+                ->get();
+            foreach ($results as $r) {
+                $activities[] = [
+                    'title' => 'Received grade for ' . ($r->subject->name ?? 'Subject'),
+                    'time' => $r->graded_at ? \Carbon\Carbon::parse($r->graded_at)->diffForHumans() : 'Recently',
+                    'score' => $r->score . '/' . $r->max_score
+                ];
+            }
+        } elseif ($role === 'teacher') {
+            $assignments = \App\Models\Assignment::where('teacher_id', $id)
+                ->latest()
+                ->limit(5)
+                ->get();
+            foreach ($assignments as $a) {
+                $activities[] = [
+                    'title' => 'Created Assignment: ' . $a->title,
+                    'time' => $a->created_at->diffForHumans(),
+                    'type' => 'assignment'
+                ];
+            }
+            $tests = \App\Models\CbtTest::where('teacher_id', $id)
+                ->latest()
+                ->limit(5)
+                ->get();
+            foreach ($tests as $t) {
+                $activities[] = [
+                    'title' => 'Created CBT Test: ' . $t->title,
+                    'time' => $t->created_at->diffForHumans(),
+                    'type' => 'cbt'
+                ];
+            }
+        }
+        $formatted['activities'] = $activities;
+
+        // Include health records and profile for the user
+        $role_model = strtolower(class_basename($user));
+        $formatted['health_records'] = \App\Models\HealthRecord::where('user_id', $id)
+            ->where('user_role', $role_model)
+            ->latest()
+            ->get();
+        
+        $formatted['health_profile'] = \App\Models\HealthProfile::where('user_id', $id)
+            ->where('user_role', $role_model)
+            ->first();
+
         return response()->json($formatted);
     }
 
@@ -181,6 +257,10 @@ class UserManagementController extends Controller
             'can_create_students' => ['nullable', 'boolean'],
             'class_teacher_of' => ['nullable', 'exists:school_classes,id'],
             'department' => ['nullable', 'string', 'max:100'],
+            'parent_name' => ['nullable', 'string', 'max:255'],
+            'parent_phone' => ['nullable', 'string', 'max:50'],
+            'parent_email' => ['nullable', 'email', 'max:255'],
+            'parent_address' => ['nullable', 'string'],
         ]);
 
         if (isset($payload['email']) && $payload['email'] !== $user->email && $this->emailExists($payload['email'], $role, $id)) {
@@ -228,7 +308,12 @@ class UserManagementController extends Controller
         }
 
         if ($role === 'teacher' && array_key_exists('subject_ids', $payload)) {
-            $user->subjects()->sync($payload['subject_ids'] ?? []);
+            $syncData = [];
+            $classId = $payload['class_teacher_of'] ?? $user->class_teacher_of ?? 1;
+            foreach ($payload['subject_ids'] as $sid) {
+                $syncData[$sid] = ['school_class_id' => $classId];
+            }
+            $user->subjects()->sync($syncData);
         }
 
         $user = $user->fresh();
@@ -238,7 +323,10 @@ class UserManagementController extends Controller
             $user->load('subjects');
         }
 
-        return response()->json($this->formatUser($user, $role));
+        return response()->json([
+            'message' => ucfirst($role) . ' updated successfully.',
+            'user' => $this->formatUser($user, $role)
+        ]);
     }
 
     /**
@@ -292,6 +380,10 @@ class UserManagementController extends Controller
             $formatted['is_prefect'] = $user->is_prefect;
             $formatted['prefect_title'] = $user->prefect_title;
             $formatted['department'] = $user->department;
+            $formatted['parent_name'] = $user->parent_name;
+            $formatted['parent_phone'] = $user->parent_phone;
+            $formatted['parent_email'] = $user->parent_email;
+            $formatted['parent_address'] = $user->parent_address;
             if ($user->relationLoaded('classes')) {
                 $formatted['school_classes'] = $user->classes;
             }
@@ -299,6 +391,10 @@ class UserManagementController extends Controller
             $formatted['employee_id'] = $user->employee_id;
             $formatted['institutional_role'] = $user->institutional_role;
             if ($role === 'teacher') {
+                $formatted['parent_name'] = $user->parent_name;
+                $formatted['parent_phone'] = $user->parent_phone;
+                $formatted['parent_email'] = $user->parent_email;
+                $formatted['parent_address'] = $user->parent_address;
                 $formatted['can_create_students'] = $user->can_create_students ?? false;
                 $formatted['class_teacher_of'] = $user->class_teacher_of;
                 if ($user->relationLoaded('subjects')) {

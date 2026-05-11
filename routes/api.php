@@ -68,6 +68,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
         // Admin messaging - broadcast to all teachers or specific teacher
         Route::post('/admin/broadcast-message', [MessageController::class, 'adminBroadcast']);
+        
+        // CBT Results approval workflow
+        Route::get('/cbt-submissions', [CbtController::class, 'allSubmissions']);
+        Route::patch('/cbt-submissions/release-all', [CbtController::class, 'releaseAllPending']);
+        Route::patch('/cbt-submissions/{submission}/release', [CbtController::class, 'releaseResult']);
     });
 
     // ─── Teacher & Admin Routes ─────────────────────────────
@@ -106,6 +111,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/my/attendance', [AttendanceController::class, 'index']);
         Route::get('/my/results', [ResultController::class, 'index']);
         Route::get('/my/classes', [\App\Http\Controllers\Api\StudentClassController::class, 'index']);
+        Route::get('/my/teachers', [\App\Http\Controllers\Api\StudentClassController::class, 'myTeachers']);
+        Route::get('/my/classmates', [\App\Http\Controllers\Api\StudentClassController::class, 'myClassmates']);
 
         // Finance - Student
         Route::get('/student/finance', [FinanceController::class, 'studentFinance']);
@@ -122,16 +129,29 @@ Route::middleware('auth:sanctum')->group(function (): void {
     });
 
     // Shared / Role-specific routes for new models
-    Route::apiResource('assignments', AssignmentController::class);
+    Route::apiResource('/assignments', AssignmentController::class);
+    Route::post('/assignments/{assignment}/submit', [AssignmentController::class, 'submit']);
+    Route::get('/assignments/{assignment}/submissions', [AssignmentController::class, 'submissions']);
+    Route::post('/submissions/{submission}/grade', [AssignmentController::class, 'grade']);
+    Route::post('/messages/clear-chat', [MessageController::class, 'clearChat']);
+    Route::delete('/admin/messages/wipe-all', [MessageController::class, 'clearAll']);
     Route::apiResource('messages', MessageController::class);
     Route::apiResource('resources', ResourceController::class);
     Route::apiResource('calendar-events', CalendarEventController::class);
     Route::apiResource('teacher-classes', \App\Http\Controllers\TeacherClassController::class);
+    Route::get('/all-teachers', [\App\Http\Controllers\Api\StudentClassController::class, 'allTeachers']);
 
     // Disputes & Feedback (teachers, students, admins)
     Route::get('/disputes', [DisputeController::class, 'index']);
     Route::post('/disputes', [DisputeController::class, 'store']);
     Route::patch('/disputes/{dispute}', [DisputeController::class, 'update']);
+    Route::delete('/disputes/clear-all', [DisputeController::class, 'clearAll']);
+    Route::delete('/disputes/{dispute}', [DisputeController::class, 'destroy']);
+
+    // Health Records
+    Route::get('/health-records', [\App\Http\Controllers\Api\HealthRecordController::class, 'index']);
+    Route::post('/health-records', [\App\Http\Controllers\Api\HealthRecordController::class, 'store']);
+    Route::delete('/health-records/{id}', [\App\Http\Controllers\Api\HealthRecordController::class, 'destroy']);
 
     // Admin profile update
     Route::patch('/admin/profile', [\App\Http\Controllers\Api\Auth\AuthController::class, 'updateProfile']);

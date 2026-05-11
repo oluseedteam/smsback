@@ -21,6 +21,7 @@ class CbtSubmission extends Model
         'time_spent_seconds',
         'started_at',
         'submitted_at',
+        'result_released',
     ];
 
     protected function casts(): array

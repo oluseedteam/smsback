@@ -28,6 +28,10 @@ class Teacher extends Authenticatable
         'is_first_login',
         'can_create_students',
         'class_teacher_of',
+        'parent_name',
+        'parent_phone',
+        'parent_email',
+        'parent_address',
     ];
 
     protected $hidden = [

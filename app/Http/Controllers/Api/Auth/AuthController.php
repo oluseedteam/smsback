@@ -90,7 +90,12 @@ class AuthController extends Controller
     {
         $payload = $request->validate([
             'profile_picture' => ['nullable', 'string'],
+            'gender' => ['nullable', 'string'],
             'is_skipped' => ['nullable', 'boolean'],
+            'parent_name' => ['nullable', 'string'],
+            'parent_phone' => ['nullable', 'string'],
+            'parent_email' => ['nullable', 'string'],
+            'parent_address' => ['nullable', 'string'],
         ]);
 
         $user = $request->user();
@@ -98,6 +103,18 @@ class AuthController extends Controller
         $updateData = ['is_first_login' => false];
         if (isset($payload['profile_picture'])) {
             $updateData['profile_picture'] = $payload['profile_picture'];
+        }
+        if (isset($payload['gender'])) {
+            $updateData['gender'] = strtolower($payload['gender']);
+        }
+        
+        // Allow student and teacher models to have these fields
+        $role = strtolower(class_basename($user));
+        if (in_array($role, ['student', 'teacher'])) {
+            if (isset($payload['parent_name'])) $updateData['parent_name'] = $payload['parent_name'];
+            if (isset($payload['parent_phone'])) $updateData['parent_phone'] = $payload['parent_phone'];
+            if (isset($payload['parent_email'])) $updateData['parent_email'] = $payload['parent_email'];
+            if (isset($payload['parent_address'])) $updateData['parent_address'] = $payload['parent_address'];
         }
 
         $user->update($updateData);
@@ -107,15 +124,32 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Profile updated successfully.',
-            'user' => $this->buildUserPayload($user->fresh(), $role),
+            'user' => $this->buildUserPayload($user->fresh()->load('classes'), $role),
         ]);
     }
 
     private function buildUserPayload($user, string $role): array
     {
         $idPayload = match ($role) {
-            'teacher', 'worker' => ['employee_id' => $user->employee_id ?? null],
-            'student' => ['student_id' => $user->student_id ?? null],
+            'worker' => ['employee_id' => $user->employee_id ?? null],
+            'teacher' => [
+                'employee_id' => $user->employee_id ?? null,
+                'parent_name' => $user->parent_name ?? null,
+                'parent_phone' => $user->parent_phone ?? null,
+                'parent_email' => $user->parent_email ?? null,
+                'parent_address' => $user->parent_address ?? null,
+            ],
+            'student' => [
+                'student_id' => $user->student_id ?? null,
+                'parent_name' => $user->parent_name ?? null,
+                'parent_phone' => $user->parent_phone ?? null,
+                'parent_email' => $user->parent_email ?? null,
+                'parent_address' => $user->parent_address ?? null,
+                'department' => $user->department ?? null,
+                'is_prefect' => $user->is_prefect ?? false,
+                'prefect_title' => $user->prefect_title ?? null,
+                'school_classes' => $user->classes ?? [],
+            ],
             default => [],
         };
 
@@ -124,8 +158,10 @@ class AuthController extends Controller
             'full_name' => $user->full_name,
             'email' => $user->email,
             'role' => $role,
+            'gender' => $user->gender,
             'profile_picture' => $user->profile_picture,
             'is_first_login' => $user->is_first_login,
+            'can_create_students' => $user->can_create_students ?? false,
             ...$idPayload,
         ];
     }

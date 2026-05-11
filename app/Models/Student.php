@@ -26,6 +26,10 @@ class Student extends Authenticatable
         'profile_picture',
         'is_first_login',
         'department',
+        'parent_name',
+        'parent_phone',
+        'parent_email',
+        'parent_address',
     ];
 
     protected $hidden = [

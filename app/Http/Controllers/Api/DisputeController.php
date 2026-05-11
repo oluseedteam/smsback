@@ -51,16 +51,62 @@ class DisputeController extends Controller
         return response()->json($dispute, 201);
     }
 
-    /** Admin replies to / updates status of a dispute */
+    /** Edit or reply to a dispute/feedback */
     public function update(Request $request, Dispute $dispute): JsonResponse
     {
+        $user = $request->user();
+        
+        // Authorization: Admin can update anything. Sender can update subject/message if not resolved.
+        $isSender = ($dispute->sender_id === $user->id && $dispute->sender_type === get_class($user));
+        
+        if ($user->role !== 'admin' && !$isSender) {
+             return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
         $validated = $request->validate([
+            'subject'     => 'sometimes|string|max:255',
+            'message'     => 'sometimes|string',
+            'category'    => 'sometimes|in:complaint,suggestion,query,general',
             'status'      => 'sometimes|in:open,in_progress,resolved,closed',
             'admin_reply' => 'sometimes|string',
         ]);
 
+        // Non-admins can't change status or reply
+        if ($user->role !== 'admin') {
+            unset($validated['status'], $validated['admin_reply']);
+        }
+
         $dispute->update($validated);
 
-        return response()->json($dispute->fresh()->load('sender'));
+        return response()->json([
+            'message' => 'Dispute updated successfully.',
+            'dispute' => $dispute->fresh()->load('sender')
+        ]);
+    }
+
+    /** Delete a dispute/feedback */
+    public function destroy(Request $request, Dispute $dispute): JsonResponse
+    {
+        $user = $request->user();
+        $isSender = ($dispute->sender_id === $user->id && $dispute->sender_type === get_class($user));
+
+        if ($user->role !== 'admin' && !$isSender) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $dispute->delete();
+
+        return response()->json(['message' => 'Dispute deleted successfully.']);
+    }
+
+    public function clearAll(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if ($user->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        Dispute::truncate();
+        return response()->json(['message' => 'All disputes/feedback cleared successfully.']);
     }
 }

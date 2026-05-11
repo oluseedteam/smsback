@@ -17,7 +17,7 @@ class CbtController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $query = CbtTest::with(['subject:id,name,code', 'schoolClass:id,name,grade_level', 'teacher:id,full_name'])
+        $query = CbtTest::with(['subject:id,name,code', 'schoolClass:id,name,grade_level', 'teacher:id,full_name', 'questions'])
             ->withCount(['questions', 'submissions']);
 
         if ($user->role === 'teacher') {
@@ -58,7 +58,10 @@ class CbtController extends Controller
 
         $test = CbtTest::create($validated);
 
-        return response()->json($test->load(['subject', 'schoolClass']), 201);
+        return response()->json([
+            'message' => 'CBT test created successfully.',
+            'test' => $test->load(['subject', 'schoolClass'])
+        ], 201);
     }
 
     public function show(CbtTest $cbtTest): JsonResponse
@@ -84,7 +87,10 @@ class CbtController extends Controller
 
         $cbtTest->update($validated);
 
-        return response()->json($cbtTest->fresh()->load(['subject', 'schoolClass']));
+        return response()->json([
+            'message' => 'CBT test updated successfully.',
+            'test' => $cbtTest->fresh()->load(['subject', 'schoolClass'])
+        ]);
     }
 
     public function destroy(CbtTest $cbtTest): JsonResponse
@@ -112,7 +118,10 @@ class CbtController extends Controller
 
         $question = CbtQuestion::create($validated);
 
-        return response()->json($question, 201);
+        return response()->json([
+            'message' => 'Question added successfully.',
+            'question' => $question
+        ], 201);
     }
 
     public function storeBulkQuestions(Request $request, CbtTest $cbtTest): JsonResponse
@@ -145,7 +154,10 @@ class CbtController extends Controller
             ]);
         }
 
-        return response()->json($questions, 201);
+        return response()->json([
+            'message' => count($questions) . ' questions added successfully.',
+            'questions' => $questions
+        ], 201);
     }
 
     public function updateQuestion(Request $request, CbtQuestion $question): JsonResponse
@@ -162,7 +174,10 @@ class CbtController extends Controller
 
         $question->update($validated);
 
-        return response()->json($question);
+        return response()->json([
+            'message' => 'Question updated successfully.',
+            'question' => $question
+        ]);
     }
 
     public function destroyQuestion(CbtQuestion $question): JsonResponse
@@ -342,5 +357,51 @@ class CbtController extends Controller
             ->get();
 
         return response()->json($counts);
+    }
+
+    // ─── Admin CBT Results Approval ─────────────────────────
+    
+    public function allSubmissions(Request $request): JsonResponse
+    {
+        $query = CbtSubmission::with([
+            'test:id,title,subject_id,school_class_id', 
+            'test.subject:id,name', 
+            'test.schoolClass:id,name', 
+            'student:id,full_name,student_id'
+        ]);
+
+        if ($request->filled('status')) {
+            if ($request->input('status') === 'pending') {
+                $query->where('result_released', false);
+            } else if ($request->input('status') === 'released') {
+                $query->where('result_released', true);
+            }
+        }
+
+        return response()->json($query->latest('submitted_at')->get());
+    }
+
+    public function releaseResult(Request $request, CbtSubmission $submission): JsonResponse
+    {
+        $submission->update(['result_released' => true]);
+
+        return response()->json([
+            'message' => 'Result released successfully.',
+            'submission' => $submission->fresh()->load([
+                'test:id,title,subject_id,school_class_id', 
+                'test.subject:id,name', 
+                'test.schoolClass:id,name', 
+                'student:id,full_name,student_id'
+            ])
+        ]);
+    }
+
+    public function releaseAllPending(Request $request): JsonResponse
+    {
+        CbtSubmission::where('result_released', false)->update(['result_released' => true]);
+
+        return response()->json([
+            'message' => 'All pending results have been released successfully.'
+        ]);
     }
 }
