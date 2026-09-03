@@ -20,7 +20,15 @@ class SchoolClass extends Model
         'room',
         'academic_year',
         'teacher_id',
+        'academic_section_id',
+        'arm',
+        'status',
     ];
+
+    public function academicSection(): BelongsTo
+    {
+        return $this->belongsTo(AcademicSection::class, 'academic_section_id');
+    }
 
     public function teacher(): BelongsTo
     {

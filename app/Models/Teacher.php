@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -23,15 +22,22 @@ class Teacher extends Authenticatable
         'employee_id',
         'email',
         'password',
+        'phone',
         'gender',
         'profile_picture',
         'is_first_login',
         'can_create_students',
         'class_teacher_of',
+        'assigned_session_id',
         'parent_name',
         'parent_phone',
         'parent_email',
         'parent_address',
+        'emergency_contact_name',
+        'emergency_contact_phone',
+        'emergency_contact_relationship',
+        'qr_code_identifier',
+        'status',
     ];
 
     protected $hidden = [
@@ -46,6 +52,11 @@ class Teacher extends Authenticatable
             'password' => 'hashed',
             'can_create_students' => 'boolean',
         ];
+    }
+
+    public function assignedSession(): BelongsTo
+    {
+        return $this->belongsTo(AcademicSession::class, 'assigned_session_id');
     }
 
     public function classes(): HasMany
@@ -78,5 +89,15 @@ class Teacher extends Authenticatable
     public function cbtTests(): HasMany
     {
         return $this->hasMany(CbtTest::class);
+    }
+
+    public function timetables(): HasMany
+    {
+        return $this->hasMany(Timetable::class);
+    }
+
+    public function timetableChangeRequests(): HasMany
+    {
+        return $this->hasMany(TimetableChangeRequest::class);
     }
 }

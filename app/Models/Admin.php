@@ -21,6 +21,11 @@ class Admin extends Authenticatable
         'gender',
         'profile_picture',
         'is_first_login',
+        'role',
+        'permissions',
+        'phone',
+        'qr_code_identifier',
+        'status',
     ];
 
     protected $hidden = [
@@ -33,6 +38,27 @@ class Admin extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'permissions' => 'array',
         ];
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return ($this->role ?? 'admin') === 'admin';
+    }
+
+    public function isSubAdmin(): bool
+    {
+        return ($this->role ?? 'admin') === 'sub_admin';
+    }
+
+    public function hasPermission(string $perm): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        $permissions = $this->permissions ?? [];
+        return in_array($perm, $permissions);
     }
 }

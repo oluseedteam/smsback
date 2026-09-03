@@ -11,6 +11,8 @@ class CbtQuestion extends Model
 {
     use HasFactory;
 
+    protected $table = 'cbt_questions';
+
     protected $fillable = [
         'cbt_test_id',
         'question',
@@ -21,11 +23,19 @@ class CbtQuestion extends Model
         'correct_answer',
         'points',
         'order',
+        'status',
+        'rejection_reason',
+        'approved_by',
     ];
 
     public function test(): BelongsTo
     {
         return $this->belongsTo(CbtTest::class, 'cbt_test_id');
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'approved_by');
     }
 
     public function answers(): HasMany

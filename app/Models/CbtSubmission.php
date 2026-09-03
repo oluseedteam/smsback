@@ -15,10 +15,16 @@ class CbtSubmission extends Model
         'cbt_test_id',
         'student_id',
         'score',
+        'raw_score',
+        'weighted_score',
+        'percentage',
         'total_questions',
         'correct_answers',
         'wrong_answers',
         'time_spent_seconds',
+        'duration_used',
+        'attempt_number',
+        'status',
         'started_at',
         'submitted_at',
         'result_released',
@@ -29,6 +35,10 @@ class CbtSubmission extends Model
         return [
             'started_at' => 'datetime',
             'submitted_at' => 'datetime',
+            'raw_score' => 'decimal:2',
+            'weighted_score' => 'decimal:2',
+            'percentage' => 'decimal:2',
+            'attempt_number' => 'integer',
         ];
     }
 

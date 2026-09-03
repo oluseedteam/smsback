@@ -14,12 +14,21 @@ class CbtTest extends Model
     protected $fillable = [
         'title',
         'description',
+        'instructions',
         'teacher_id',
         'school_class_id',
+        'academic_section_id',
+        'academic_session_id',
         'subject_id',
         'term',
         'duration_minutes',
+        'total_questions',
+        'total_marks',
         'max_score',
+        'attempt_limit',
+        'randomize_questions',
+        'randomize_options',
+        'status',
         'is_published',
         'start_time',
         'end_time',
@@ -29,9 +38,24 @@ class CbtTest extends Model
     {
         return [
             'is_published' => 'boolean',
+            'randomize_questions' => 'boolean',
+            'randomize_options' => 'boolean',
+            'attempt_limit' => 'integer',
+            'total_questions' => 'integer',
+            'total_marks' => 'decimal:2',
             'start_time' => 'datetime',
             'end_time' => 'datetime',
         ];
+    }
+
+    public function academicSection(): BelongsTo
+    {
+        return $this->belongsTo(AcademicSection::class, 'academic_section_id');
+    }
+
+    public function academicSession(): BelongsTo
+    {
+        return $this->belongsTo(AcademicSession::class, 'academic_session_id');
     }
 
     public function teacher(): BelongsTo
