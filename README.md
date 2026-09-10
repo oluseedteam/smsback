@@ -1,9 +1,10 @@
-# GHRA School Management System - Backend (Laravel 11)
+# GHRA School Management System (Laravel 12 + React)
 
 A premium School Management Platform designed for modern educational institutions.
 
 ## Tech Stack
-- **Backend**: Laravel 11 (PHP 8.2+)
+- **Backend**: Laravel 12 (PHP 8.2+)
+- **Frontend**: React 19 with Vite
 - **Database**: MySQL / MariaDB
 - **Authentication**: Laravel Sanctum (Token-based)
 - **API**: RESTful API design
@@ -21,11 +22,13 @@ A premium School Management Platform designed for modern educational institution
 ### 1. Prerequisites
 - PHP 8.2+
 - Composer
+- Node.js 20+ and npm
 - MySQL
 
 ### 2. Installation
 ```bash
 composer install
+npm ci
 cp .env.example .env
 php artisan key:generate
 ```
@@ -43,7 +46,26 @@ DB_PASSWORD=
 
 ### 4. Migrate & Seed
 ```bash
-php artisan migrate
+php artisan migrate --seed
+npm run build
+```
+
+Set `ADMIN_EMAIL` and a strong `ADMIN_PASSWORD` in `.env` before seeding if the
+first administrator account needs to be created. The application does not ship
+with a default production password.
+
+### 5. Production Deployment
+
+After each release, install the locked dependencies, run every migration, build
+the frontend, and refresh Laravel's caches:
+
+```bash
+composer install --no-dev --optimize-autoloader
+npm ci
+npm run build
+php artisan migrate --force
+php artisan optimize:clear
+php artisan optimize
 ```
 
 ## API Documentation
@@ -79,17 +101,24 @@ All endpoints are prefixed with `/api`. Authentication is required for most rout
   - `PATCH /api/cbt-submissions/{id}/release`: Approve and publish specific result.
   - `PATCH /api/cbt-submissions/release-all`: Publish all pending results.
 
-### 💰 Finance & Payments
-- `GET /api/fees`: (Admin) Manage school fees.
-- `GET /api/student/finance`: (Student) Personal balance and paid fees.
-- `POST /api/student/payment/initialize`: Start Paystack/Flutterwave flow.
+### 💰 Finance & Payments (Manual Bank Transfer & Receipt Verification)
+- `GET /api/payment-settings/bank-account`: View authoritative school bank account details.
+- `PUT /api/payment-settings/bank-account`: (Admin) Update school bank account details.
+- `GET /api/fee-types`: List available fee types.
+- `GET /api/fees`: Class fee structures.
+- `GET /api/student/finance`: (Student) Personal balance, fee breakdown, and payment history.
+- `POST /api/student/payments`: (Student) Submit bank transfer receipt for verification.
+- `GET /api/admin/payments`: (Admin) Payment verification hub.
+- `POST /api/admin/payments/{payment}/confirm`: (Admin) Confirm receipt, update student balance, and generate official receipt number.
+- `POST /api/admin/payments/{payment}/reject`: (Admin) Reject payment submission with reason.
 
 ### 📂 Communication & Materials
 - `apiResource('messages')`: Internal chat system.
 - `apiResource('assignments')`: Teacher-Student homework loop.
 - `apiResource('resources')`: Library and PDF sharing.
 
-## Default Credentials
-- **Admin**: `admin / admin`
-- **Teacher**: `teacher@school.com / password`
-- **Student**: `student@school.com / password`
+## Credentials
+
+No default login credentials are committed to the repository. Create accounts
+with the administration workflow or configure the one-time bootstrap admin
+variables described above before running the seeder.

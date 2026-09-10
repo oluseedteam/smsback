@@ -12,13 +12,19 @@ use Illuminate\Support\Facades\Log;
 class DigitalLibraryController extends Controller
 {
     /**
-     * Unified Library Search: combines Eyitayo School Library Resources, Open Library, and Google Books.
+     * Unified Library Search: combines GHRA Library Resources, Open Library, and Google Books.
      */
     public function search(Request $request): JsonResponse
     {
-        $query = trim($request->input('q', ''));
-        $category = $request->input('category', 'all'); // 'all', 'school', 'open_library', 'google_books'
-        $classId = $request->input('school_class_id');
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:200'],
+            'category' => ['nullable', 'string', 'in:all,school,open_library,google_books'],
+            'school_class_id' => ['nullable', 'integer', 'exists:school_classes,id'],
+        ]);
+
+        $query = trim($validated['q'] ?? '');
+        $category = $validated['category'] ?? 'all';
+        $classId = $validated['school_class_id'] ?? null;
 
         $results = [
             'school_library' => [],
@@ -27,9 +33,18 @@ class DigitalLibraryController extends Controller
             'total' => 0,
         ];
 
-        // 1. Eyitayo School Library
+        // 1. GHRA Library
         if ($category === 'all' || $category === 'school') {
             $schoolQuery = Resource::with(['uploader:id,full_name,email', 'schoolClass:id,name']);
+            $user = $request->user();
+            if (!$user) {
+                $schoolQuery->whereNull('school_class_id');
+            } elseif ($user->role === 'student') {
+                $classIds = $user->classes()->pluck('school_classes.id');
+                $schoolQuery->where(function ($builder) use ($classIds): void {
+                    $builder->whereNull('school_class_id')->orWhereIn('school_class_id', $classIds);
+                });
+            }
             if (!empty($query)) {
                 $schoolQuery->where('title', 'like', "%{$query}%");
             }
@@ -44,12 +59,12 @@ class DigitalLibraryController extends Controller
                 return [
                     'id' => 'school_' . $r->id,
                     'title' => $r->title,
-                    'author' => $r->uploader?->full_name ?? 'Eyitayo Faculty',
+                    'author' => $r->uploader?->full_name ?? 'GHRA Faculty',
                     'type' => $r->type ?? 'pdf',
                     'url' => $r->url,
                     'cover_image' => null,
                     'class_name' => $r->schoolClass?->name ?? 'Global (All Classes)',
-                    'source' => 'Eyitayo School Library',
+                    'source' => 'GHRA Library',
                     'created_at' => $r->created_at?->format('M d, Y'),
                 ];
             });

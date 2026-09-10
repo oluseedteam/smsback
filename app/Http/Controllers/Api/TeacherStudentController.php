@@ -94,7 +94,7 @@ class TeacherStudentController extends Controller
             'emergency_contact_name' => $validated['emergency_contact_name'] ?? null,
             'emergency_contact_phone' => $validated['emergency_contact_phone'] ?? null,
             'profile_picture' => $validated['profile_picture'] ?? null,
-            'qr_code_identifier' => 'EYI-STU-' . strtoupper(Str::random(10)),
+            'qr_code_identifier' => 'GHRA-STU-' . strtoupper(Str::random(10)),
             'status' => 'pending_approval',
             'created_by_teacher_id' => $teacher->id,
         ]);

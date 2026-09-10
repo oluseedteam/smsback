@@ -34,17 +34,17 @@ class ComprehensiveSchoolWorkflowTest extends TestCase
         $class = SchoolClass::create(['name' => 'JSS 1 Gold', 'grade_level' => 'JSS 1']);
 
         $teacher = Teacher::create([
-            'full_name' => 'Mr. Eyitayo Ade',
-            'employee_id' => 'EYI-TCH-001',
-            'email' => 'teacher@eyitayoschools.edu.ng',
+            'full_name' => 'Mr. GHRA Ade',
+            'employee_id' => 'GHRA-TCH-001',
+            'email' => 'teacher@ghraschools.edu.ng',
             'password' => bcrypt('Password123!'),
             'can_create_students' => true,
             'class_teacher_of' => $class->id,
         ]);
 
         $admin = Admin::create([
-            'full_name' => 'Admin Eyitayo',
-            'email' => 'admin@eyitayoschools.edu.ng',
+            'full_name' => 'Admin GHRA',
+            'email' => 'admin@ghraschools.edu.ng',
             'password' => bcrypt('Password123!'),
             'role' => 'admin',
         ]);
@@ -54,7 +54,7 @@ class ComprehensiveSchoolWorkflowTest extends TestCase
             'full_name' => 'Boluwatife Adeleke',
             'email' => 'bolu@student.ng',
             'password' => 'Password123!',
-            'student_id' => 'EYI-STU-101',
+            'student_id' => 'GHRA-STU-101',
             'gender' => 'male',
             'section' => 'A',
             'class_id' => $class->id,
@@ -104,14 +104,14 @@ class ComprehensiveSchoolWorkflowTest extends TestCase
 
         $teacher = Teacher::create([
             'full_name' => 'Math Teacher',
-            'employee_id' => 'EYI-TCH-002',
-            'email' => 'math@eyitayoschools.edu.ng',
+            'employee_id' => 'GHRA-TCH-002',
+            'email' => 'math@ghraschools.edu.ng',
             'password' => bcrypt('Password123!'),
         ]);
 
         $admin = Admin::create([
-            'full_name' => 'Principal Eyitayo',
-            'email' => 'principal@eyitayoschools.edu.ng',
+            'full_name' => 'Principal GHRA',
+            'email' => 'principal@ghraschools.edu.ng',
             'password' => bcrypt('Password123!'),
         ]);
 
@@ -190,8 +190,8 @@ class ComprehensiveSchoolWorkflowTest extends TestCase
         $student->classes()->sync([$classJss1->id]);
 
         $admin = Admin::create([
-            'full_name' => 'Admin Eyitayo',
-            'email' => 'admin2@eyitayoschools.edu.ng',
+            'full_name' => 'Admin GHRA',
+            'email' => 'admin2@ghraschools.edu.ng',
             'password' => bcrypt('Password123!'),
         ]);
 
@@ -246,8 +246,8 @@ class ComprehensiveSchoolWorkflowTest extends TestCase
         $student->classes()->sync([$class->id]);
 
         $admin = Admin::create([
-            'full_name' => 'Admin Eyitayo',
-            'email' => 'admin3@eyitayoschools.edu.ng',
+            'full_name' => 'Admin GHRA',
+            'email' => 'admin3@ghraschools.edu.ng',
             'password' => bcrypt('Password123!'),
         ]);
 

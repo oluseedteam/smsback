@@ -18,6 +18,8 @@ class AcademicSession extends Model
         'current_term',
         'start_date',
         'end_date',
+        'registration_deadline',
+        'registration_reopened',
         'status',
         'created_by',
     ];
@@ -29,6 +31,8 @@ class AcademicSession extends Model
             'terms' => 'array',
             'start_date' => 'date',
             'end_date' => 'date',
+            'registration_deadline' => 'datetime',
+            'registration_reopened' => 'boolean',
         ];
     }
 

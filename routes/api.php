@@ -30,10 +30,17 @@ use App\Http\Controllers\Api\AcademicSectionController;
 use App\Http\Controllers\Api\AIController;
 use App\Http\Controllers\Api\QrIdCardController;
 use App\Http\Controllers\Api\DigitalLibraryController;
+use App\Http\Controllers\Api\SchoolSettingsController;
 use Illuminate\Support\Facades\Route;
+
+// ─── Public School Settings (Contact, About, Identity, Experience) ──
+Route::get('/public/school-settings', [SchoolSettingsController::class, 'getPublicSettings']);
 
 // ─── Public Parent / Verification Report Card route ─────────────
 Route::get('/public/report-card/verify/{token}', [ReportCardController::class, 'verifyPublicToken']);
+
+// Public catalog lookup; all library mutations remain authenticated below.
+Route::middleware('throttle:60,1')->get('/library/search', [DigitalLibraryController::class, 'search']);
 
 // ─── Public Admissions & Applications routes ────────────────────
 Route::post('/admissions/apply', [AdmissionController::class, 'apply']);
@@ -63,6 +70,8 @@ Route::prefix('auth')->group(function (): void {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::patch('/profile', [AuthController::class, 'updateProfile']);
         Route::patch('/emergency-contact', [AuthController::class, 'updateEmergencyContact']);
+        Route::get('/onboarding-tour', [AuthController::class, 'getOnboardingTourStatus']);
+        Route::post('/onboarding-tour', [AuthController::class, 'updateOnboardingTourStatus']);
     });
 });
 
@@ -85,13 +94,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/nexora/ai/query', [AIController::class, 'query']); // backward compatibility
 
     // Digital Library Search (School resources + Open Library + Google Books)
-    Route::get('/library/search', [DigitalLibraryController::class, 'search']);
 
     // User ID Card & Safe QR identifier
     Route::get('/users/{role}/{id}/id-card', [QrIdCardController::class, 'getIdCard']);
 
     // ─── Admin Routes ───────────────────────────────────────
     Route::middleware('role:admin')->group(function (): void {
+        Route::get('/admin/setup-checklist', [DashboardController::class, 'setupChecklist']);
         Route::get('/logs', [\App\Http\Controllers\Api\AdminLogController::class, 'index']);
         Route::delete('/logs', [\App\Http\Controllers\Api\AdminLogController::class, 'clear']);
 
@@ -142,8 +151,22 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/fees', [FinanceController::class, 'feeIndex']);
         Route::post('/fees', [FinanceController::class, 'feeStore']);
         Route::put('/fees/{fee}', [FinanceController::class, 'feeUpdate']);
+        Route::patch('/fees/{fee}', [FinanceController::class, 'feeUpdate']);
         Route::delete('/fees/{fee}', [FinanceController::class, 'feeDestroy']);
-        Route::get('/payments', [FinanceController::class, 'allPayments']);
+        Route::get('/fee-types', [FinanceController::class, 'feeTypeIndex']);
+        Route::post('/fee-types', [FinanceController::class, 'feeTypeStore']);
+
+        // Bank Account Settings (Admin)
+        Route::put('/payment-settings/bank-account', [FinanceController::class, 'updateBankAccount']);
+
+        // Admin Payment Verification & Records
+        Route::get('/payments', [FinanceController::class, 'adminPayments']);
+        Route::get('/admin/payments', [FinanceController::class, 'adminPayments']);
+        Route::get('/admin/payments/{payment}', [FinanceController::class, 'adminPaymentDetail']);
+        Route::post('/admin/payments/{payment}/confirm', [FinanceController::class, 'adminConfirmPayment']);
+        Route::post('/admin/payments/{payment}/reject', [FinanceController::class, 'adminRejectPayment']);
+        Route::get('/admin/finance/overview', [FinanceController::class, 'financeOverview']);
+        Route::get('/admin/students/{student}/finance', [FinanceController::class, 'studentPaymentProfile']);
 
         // Admin messaging - broadcast to all teachers or specific teacher
         Route::post('/admin/broadcast-message', [MessageController::class, 'adminBroadcast']);
@@ -192,6 +215,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/report-card-email-logs', [ReportCardController::class, 'emailLogsIndex']);
         Route::post('/results/approval', [ReportCardController::class, 'approve']);
         Route::post('/results/release', [ReportCardController::class, 'release']);
+
+        // School Identity, Contact, About & Experience Settings (Admin)
+        Route::get('/admin/school-settings', [SchoolSettingsController::class, 'getAdminSettings']);
+        Route::post('/admin/school-settings', [SchoolSettingsController::class, 'updateSchoolSettings']);
 
         // Report Card & Academic Settings (Admin)
         Route::post('/admin/report-card/settings', [ReportCardSettingsController::class, 'updateSettings']);
@@ -286,19 +313,25 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
         // Finance - Student
         Route::get('/student/finance', [FinanceController::class, 'studentFinance']);
-        Route::post('/student/payment/initialize', [FinanceController::class, 'initializePayment']);
-        Route::post('/student/payment/verify', [FinanceController::class, 'verifyPayment']);
-        Route::post('/student/payment/pay-from-wallet', [FinanceController::class, 'payFeeFromWallet']);
+        Route::get('/student/fees', [FinanceController::class, 'studentFinance']);
+        Route::post('/student/payments', [FinanceController::class, 'submitStudentPayment']);
+        Route::get('/student/payments', [FinanceController::class, 'studentFinance']);
 
         // CBT - Student
         Route::get('/student/cbt-tests', [CbtController::class, 'index']);
         Route::post('/student/cbt-tests/{cbtTest}/start', [CbtController::class, 'startExam']);
+        Route::post('/student/cbt-tests/{cbtTest}/save-answer', [CbtController::class, 'saveAnswer']);
         Route::post('/student/cbt-tests/{cbtTest}/submit', [CbtController::class, 'submitExam']);
         Route::get('/student/cbt-tests/{cbtTest}/result', [CbtController::class, 'myResult']);
         Route::get('/student/cbt-counts', [CbtController::class, 'classCounts']);
     });
 
     // ─── Shared Authenticated Routes ─────────────────────────
+    // Payment Bank Details & Secure Receipt Access
+    Route::get('/payment-settings/bank-account', [FinanceController::class, 'getBankAccount']);
+    Route::get('/payments/{payment}/receipt', [FinanceController::class, 'downloadReceiptFile']);
+    Route::get('/payments/{payment}/official-receipt', [FinanceController::class, 'getOfficialReceipt']);
+    Route::get('/payments/{payment}/official-receipt/pdf', [FinanceController::class, 'downloadOfficialReceiptPdf']);
     Route::get('/report-cards/{id}/pdf', [ReportCardController::class, 'downloadPdf']);
     Route::get('/terms', function() {
         return response()->json([
@@ -314,17 +347,26 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/grading-scales', [ReportCardSettingsController::class, 'gradingScalesIndex']);
     Route::get('/assessment-configurations', [ReportCardSettingsController::class, 'assessmentConfigsIndex']);
 
-    // Shared / Role-specific routes for assignments, messages, resources, calendar
-    Route::apiResource('/assignments', AssignmentController::class);
-    Route::post('/assignments/{assignment}/submit', [AssignmentController::class, 'submit']);
-    Route::get('/assignments/{assignment}/submissions', [AssignmentController::class, 'submissions']);
-    Route::post('/submissions/{submission}/grade', [AssignmentController::class, 'grade']);
+    // Shared / role-specific routes for assignments and school resources.
+    Route::middleware('role:admin,teacher,student')->group(function (): void {
+        Route::apiResource('assignments', AssignmentController::class)->only(['index', 'show']);
+    });
+    Route::middleware('role:student')->group(function (): void {
+        Route::post('/assignments/{assignment}/submit', [AssignmentController::class, 'submit']);
+    });
+    Route::middleware('role:admin,teacher')->group(function (): void {
+        Route::apiResource('assignments', AssignmentController::class)->only(['store', 'update', 'destroy']);
+        Route::get('/assignments/{assignment}/submissions', [AssignmentController::class, 'submissions']);
+        Route::post('/submissions/{submission}/grade', [AssignmentController::class, 'grade']);
+        Route::apiResource('resources', ResourceController::class)->only(['store', 'update', 'destroy']);
+        Route::apiResource('calendar-events', CalendarEventController::class)->only(['store', 'update', 'destroy']);
+        Route::apiResource('teacher-classes', \App\Http\Controllers\TeacherClassController::class);
+    });
     Route::post('/messages/clear-chat', [MessageController::class, 'clearChat']);
     Route::delete('/admin/messages/wipe-all', [MessageController::class, 'clearAll']);
     Route::apiResource('messages', MessageController::class);
-    Route::apiResource('resources', ResourceController::class);
-    Route::apiResource('calendar-events', CalendarEventController::class);
-    Route::apiResource('teacher-classes', \App\Http\Controllers\TeacherClassController::class);
+    Route::apiResource('resources', ResourceController::class)->only(['index', 'show']);
+    Route::apiResource('calendar-events', CalendarEventController::class)->only(['index', 'show']);
     Route::get('/all-teachers', [\App\Http\Controllers\Api\StudentClassController::class, 'allTeachers']);
 
     // Disputes & Feedback (teachers, students, admins)

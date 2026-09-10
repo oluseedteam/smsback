@@ -14,16 +14,21 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Super Admin
-        Admin::query()->firstOrCreate(
-            ['email' => 'admin@gmail.com'],
-            [
-                'full_name' => 'System Admin',
-                'password' => Hash::make('admin123'),
-            ]
-        );
+        // 1. Super Admin (only created when explicit credentials are configured)
+        $adminEmail = config('app.bootstrap_admin.email');
+        $adminPassword = config('app.bootstrap_admin.password');
 
-        // 2. School Settings for Eyitayo Schools
+        if ($adminEmail && $adminPassword) {
+            Admin::query()->updateOrCreate(
+                ['email' => $adminEmail],
+                [
+                    'full_name' => config('app.bootstrap_admin.name'),
+                    'password' => Hash::make($adminPassword),
+                ]
+            );
+        }
+
+        // 2. School Settings for GHRA
         SchoolSetting::getSettings();
 
         // 3. Current Academic Session

@@ -140,7 +140,7 @@ class UserManagementController extends Controller
             $creationData['emergency_contact_name'] = $payload['emergency_contact_name'] ?? null;
             $creationData['emergency_contact_phone'] = $payload['emergency_contact_phone'] ?? null;
             $creationData['emergency_contact_relationship'] = $payload['emergency_contact_relationship'] ?? null;
-            $creationData['qr_code_identifier'] = 'EYI-STU-' . strtoupper(Str::random(10));
+            $creationData['qr_code_identifier'] = 'GHRA-STU-' . strtoupper(Str::random(10));
         } elseif ($payload['role'] === 'teacher') {
             $creationData['employee_id'] = $payload['employee_id'] ?? null;
             $creationData['phone'] = $payload['phone'] ?? null;
@@ -150,17 +150,17 @@ class UserManagementController extends Controller
             $creationData['emergency_contact_name'] = $payload['emergency_contact_name'] ?? null;
             $creationData['emergency_contact_phone'] = $payload['emergency_contact_phone'] ?? null;
             $creationData['emergency_contact_relationship'] = $payload['emergency_contact_relationship'] ?? null;
-            $creationData['qr_code_identifier'] = 'EYI-TCH-' . strtoupper(Str::random(10));
+            $creationData['qr_code_identifier'] = 'GHRA-TCH-' . strtoupper(Str::random(10));
         } elseif ($payload['role'] === 'worker') {
             $creationData['employee_id'] = $payload['employee_id'] ?? null;
             $creationData['phone'] = $payload['phone'] ?? null;
             $creationData['institutional_role'] = $payload['institutional_role'] ?? null;
-            $creationData['qr_code_identifier'] = 'EYI-WRK-' . strtoupper(Str::random(10));
+            $creationData['qr_code_identifier'] = 'GHRA-WRK-' . strtoupper(Str::random(10));
         } elseif ($payload['role'] === 'admin') {
             $creationData['role'] = $payload['admin_role_type'] ?? 'admin';
             $creationData['permissions'] = $payload['permissions'] ?? null;
             $creationData['phone'] = $payload['phone'] ?? null;
-            $creationData['qr_code_identifier'] = 'EYI-ADM-' . strtoupper(Str::random(10));
+            $creationData['qr_code_identifier'] = 'GHRA-ADM-' . strtoupper(Str::random(10));
         }
 
         $user = $modelClass::query()->create($creationData);

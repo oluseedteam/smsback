@@ -25,22 +25,22 @@ class QrIdCardController extends Controller
         if ($role === 'student') {
             $user = Student::with(['classes', 'academicSession'])->findOrFail($id);
             if (empty($user->qr_code_identifier)) {
-                $user->update(['qr_code_identifier' => 'EYI-STU-' . strtoupper(Str::random(10))]);
+                $user->update(['qr_code_identifier' => 'GHRA-STU-' . strtoupper(Str::random(10))]);
             }
         } elseif ($role === 'teacher') {
             $user = Teacher::with(['assignedClass', 'subjects'])->findOrFail($id);
             if (empty($user->qr_code_identifier)) {
-                $user->update(['qr_code_identifier' => 'EYI-TCH-' . strtoupper(Str::random(10))]);
+                $user->update(['qr_code_identifier' => 'GHRA-TCH-' . strtoupper(Str::random(10))]);
             }
         } elseif ($role === 'admin') {
             $user = Admin::findOrFail($id);
             if (empty($user->qr_code_identifier)) {
-                $user->update(['qr_code_identifier' => 'EYI-ADM-' . strtoupper(Str::random(10))]);
+                $user->update(['qr_code_identifier' => 'GHRA-ADM-' . strtoupper(Str::random(10))]);
             }
         } else {
             $user = Worker::findOrFail($id);
             if (empty($user->qr_code_identifier)) {
-                $user->update(['qr_code_identifier' => 'EYI-WRK-' . strtoupper(Str::random(10))]);
+                $user->update(['qr_code_identifier' => 'GHRA-WRK-' . strtoupper(Str::random(10))]);
             }
         }
 
@@ -49,7 +49,7 @@ class QrIdCardController extends Controller
 
         // Safe QR data (public verification token string - does NOT contain secrets or passwords)
         $qrContent = json_encode([
-            'school' => 'EYITAYO SCHOOLS',
+            'school' => 'GHRA',
             'qr_id' => $user->qr_code_identifier,
             'role' => $role,
             'id' => $idNumber,
@@ -76,8 +76,8 @@ class QrIdCardController extends Controller
                 'class_name' => $className,
                 'section' => $user->section ?? null,
                 'department' => $user->department ?? null,
-                'emergency_contact_name' => $user->emergency_contact_name,
-                'emergency_contact_phone' => $user->emergency_contact_phone,
+                'emergency_contact_name' => $user->emergency_contact_name ?: 'School Front Desk',
+                'emergency_contact_phone' => $user->emergency_contact_phone ?: $settings->phone,
                 'qr_code_identifier' => $user->qr_code_identifier,
                 'qr_data_string' => $qrContent,
                 'status' => $user->status ?? 'active',
@@ -94,6 +94,7 @@ class QrIdCardController extends Controller
             'query' => 'required|string|max:255',
         ]);
 
+        $settings = SchoolSetting::getSettings();
         $q = trim($validated['query']);
 
         // Check if query is JSON formatted from scanner
@@ -114,6 +115,8 @@ class QrIdCardController extends Controller
             ->first();
 
         if ($student) {
+            $emName = $student->emergency_contact_name ?: 'School Front Desk';
+            $emPhone = $student->emergency_contact_phone ?: $settings->phone;
             return response()->json([
                 'found' => true,
                 'role' => 'student',
@@ -128,7 +131,7 @@ class QrIdCardController extends Controller
                     'section' => $student->section,
                     'parent_name' => $student->parent_name,
                     'parent_phone' => $student->parent_phone,
-                    'emergency_contact' => $student->emergency_contact_name . ' (' . $student->emergency_contact_phone . ')',
+                    'emergency_contact' => "{$emName} ({$emPhone})",
                     'status' => $student->status ?? 'active',
                     'qr_code_identifier' => $student->qr_code_identifier,
                 ]
@@ -143,6 +146,8 @@ class QrIdCardController extends Controller
             ->first();
 
         if ($teacher) {
+            $emName = $teacher->emergency_contact_name ?: 'School Front Desk';
+            $emPhone = $teacher->emergency_contact_phone ?: $settings->phone;
             return response()->json([
                 'found' => true,
                 'role' => 'teacher',
@@ -155,7 +160,7 @@ class QrIdCardController extends Controller
                     'profile_picture' => $teacher->profile_picture,
                     'class_teacher_of' => $teacher->assignedClass?->name,
                     'phone' => $teacher->phone,
-                    'emergency_contact' => $teacher->emergency_contact_name . ' (' . $teacher->emergency_contact_phone . ')',
+                    'emergency_contact' => "{$emName} ({$emPhone})",
                     'status' => $teacher->status ?? 'active',
                     'qr_code_identifier' => $teacher->qr_code_identifier,
                 ]

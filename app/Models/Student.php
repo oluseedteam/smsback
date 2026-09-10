@@ -29,6 +29,7 @@ class Student extends Authenticatable
         'gender',
         'profile_picture',
         'is_first_login',
+        'onboarding_tour',
         'department',
         'section',
         'academic_session_id',
@@ -54,6 +55,7 @@ class Student extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'onboarding_tour' => 'array',
         ];
     }
 

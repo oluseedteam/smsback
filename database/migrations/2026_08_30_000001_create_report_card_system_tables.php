@@ -26,8 +26,8 @@ return new class extends Migration
         if (!Schema::hasTable('school_settings')) {
             Schema::create('school_settings', function (Blueprint $table) {
                 $table->id();
-                $table->string('school_name')->default('EYITAYO SCHOOLS');
-                $table->string('motto')->default('KNOWLEDGE IS LIGHT');
+                $table->string('school_name')->default('GHRA');
+                $table->string('motto')->default('SHAPING YOUNG MINDS');
                 $table->string('address')->nullable();
                 $table->string('phone')->nullable();
                 $table->string('email')->nullable();

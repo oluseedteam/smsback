@@ -44,7 +44,7 @@ class SchoolClass extends Model
     public function subjects(): BelongsToMany
     {
         return $this->belongsToMany(Subject::class, 'class_subject')
-            ->withPivot('teacher_id')
+            ->withPivot(['teacher_id', 'is_compulsory'])
             ->withTimestamps();
     }
 

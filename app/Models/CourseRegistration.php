@@ -10,6 +10,18 @@ class CourseRegistration extends Model
 {
     use HasFactory;
 
+    public const STATUS_REGISTERED = 'registered';
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_ACTIVE = 'active';
+    public const STATUS_DROPPED = 'dropped';
+    public const STATUS_WITHDRAWN = 'withdrawn';
+
+    public const ELIGIBLE_STATUSES = [
+        self::STATUS_REGISTERED,
+        self::STATUS_APPROVED,
+        self::STATUS_ACTIVE,
+    ];
+
     protected $fillable = [
         'student_id',
         'school_class_id',
@@ -18,6 +30,11 @@ class CourseRegistration extends Model
         'term',
         'status',
     ];
+
+    public function scopeEligible($query)
+    {
+        return $query->whereIn('status', self::ELIGIBLE_STATUSES);
+    }
 
     public function student(): BelongsTo
     {

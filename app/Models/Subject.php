@@ -17,9 +17,21 @@ class Subject extends Model
         'code',
         'academic_section_id',
         'description',
+        'is_compulsory',
         'status',
         'school_id',
     ];
+
+    protected $attributes = [
+        'is_compulsory' => false,
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_compulsory' => 'boolean',
+        ];
+    }
 
     public function academicSection(): BelongsTo
     {
@@ -29,7 +41,7 @@ class Subject extends Model
     public function classes(): BelongsToMany
     {
         return $this->belongsToMany(SchoolClass::class, 'class_subject')
-            ->withPivot('teacher_id')
+            ->withPivot(['teacher_id', 'is_compulsory'])
             ->withTimestamps();
     }
 

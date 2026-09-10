@@ -19,6 +19,39 @@ use Illuminate\Validation\ValidationException;
 class ReportCardCalculationService
 {
     /**
+     * Normalize term identifier to canonical form ('1st Term', '2nd Term', '3rd Term').
+     */
+    public static function normalizeTerm(?string $term): string
+    {
+        if (!$term) return '1st Term';
+        $cleaned = strtolower(str_replace([' ', '-', '_'], '', $term));
+        if (in_array($cleaned, ['1stterm', 'firstterm', 'first', '1st', 'term1'], true)) {
+            return '1st Term';
+        }
+        if (in_array($cleaned, ['2ndterm', 'secondterm', 'second', '2nd', 'term2'], true)) {
+            return '2nd Term';
+        }
+        if (in_array($cleaned, ['3rdterm', 'thirdterm', 'third', '3rd', 'term3', 'annual'], true)) {
+            return '3rd Term';
+        }
+        return $term;
+    }
+
+    /**
+     * Get all compatible representations of a term.
+     */
+    public static function getTermVariants(?string $term): array
+    {
+        $normalized = self::normalizeTerm($term);
+        return match ($normalized) {
+            '1st Term' => ['1st Term', 'First Term', 'first_term', 'FIRST_TERM', '1st_term'],
+            '2nd Term' => ['2nd Term', 'Second Term', 'second_term', 'SECOND_TERM', '2nd_term'],
+            '3rd Term' => ['3rd Term', 'Third Term', 'third_term', 'THIRD_TERM', '3rd_term'],
+            default => [$term],
+        };
+    }
+
+    /**
      * Get default grading scale when none is configured in DB.
      */
     public static function getDefaultGradingScale(): array
@@ -164,8 +197,9 @@ class ReportCardCalculationService
         $components = $config->resolvedComponents();
         $hasCbt = collect($components)->contains(fn ($component) => ($component['type'] ?? null) === 'cbt');
         $hasWritten = collect($components)->contains(fn ($component) => ($component['type'] ?? null) === 'written');
-        // Keep the legacy enum compatible; the components snapshot is the source of truth for hybrid layouts.
-        $examMethod = $hasCbt ? 'cbt' : 'written';
+        $examMethod = ($hasCbt && $hasWritten) || $config->exam_method === 'combined'
+            ? 'combined'
+            : ($hasCbt ? 'cbt' : 'written');
         $cbtSubmissionId = null;
         $cbtSubmission = null;
         if ($hasCbt) {
@@ -199,12 +233,14 @@ class ReportCardCalculationService
             $value = $componentScores[$key] ?? null;
 
             if ($type === 'cbt') {
-                $percentage = $cbtSubmission && (float) $cbtSubmission->percentage > 0
-                    ? (float) $cbtSubmission->percentage
-                    : (float) ($cbtSubmission?->score ?? 0);
-                $value = $cbtSubmission
-                    ? round(($percentage / 100) * $max, 2)
-                    : null;
+                if ($cbtSubmission) {
+                    $percentage = (float) $cbtSubmission->percentage > 0
+                        ? (float) $cbtSubmission->percentage
+                        : (float) ($cbtSubmission?->score ?? 0);
+                    $value = round(($percentage / 100) * $max, 2);
+                } else {
+                    $value = $componentScores[$key] ?? null;
+                }
             }
 
             if ($value !== null && ($value < 0 || $value > $max)) {
@@ -222,6 +258,13 @@ class ReportCardCalculationService
 
         $gradeInfo = $this->determineGradeAndRemark($percentage, $class->id, $session->id);
 
+        $examScore = null;
+        if ($examMethod === 'combined') {
+            $examScore = round((float) ($resolvedScores['written'] ?? 0) + (float) ($resolvedScores['cbt'] ?? 0), 2);
+        } else {
+            $examScore = $resolvedScores['written'] ?? $resolvedScores['cbt'] ?? null;
+        }
+
         return SubjectResult::updateOrCreate(
             [
                 'student_id' => $student->id,
@@ -235,7 +278,7 @@ class ReportCardCalculationService
                 'ca2_score' => $resolvedScores['ca2'] ?? null,
                 'assessment_scores' => $resolvedScores,
                 'cbt_submission_id' => $cbtSubmissionId,
-                'exam_score' => $resolvedScores['written'] ?? $resolvedScores['cbt'] ?? null,
+                'exam_score' => $examScore,
                 'exam_method' => $examMethod,
                 'total_score' => $totalScore,
                 'total_obtainable' => $totalMax,
@@ -530,7 +573,7 @@ class ReportCardCalculationService
             ->where('school_class_id', $reportCard->school_class_id)
             ->where('academic_session_id', $reportCard->academic_session_id)
             ->where('term', $reportCard->term)
-            ->whereIn('status', ['registered', 'pending', 'approved', 'active'])
+            ->whereIn('status', CourseRegistration::ELIGIBLE_STATUSES)
             ->get();
 
         if ($registrations->isEmpty()) {

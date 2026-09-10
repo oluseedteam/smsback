@@ -21,6 +21,7 @@ class Admin extends Authenticatable
         'gender',
         'profile_picture',
         'is_first_login',
+        'onboarding_tour',
         'role',
         'permissions',
         'phone',
@@ -39,6 +40,7 @@ class Admin extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'permissions' => 'array',
+            'onboarding_tour' => 'array',
         ];
     }
 

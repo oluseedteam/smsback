@@ -10,6 +10,7 @@ use App\Services\Auth\AuthService;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class AuthController extends Controller
 {
@@ -191,6 +192,7 @@ class AuthController extends Controller
             'worker' => [
                 'employee_id' => $user->employee_id ?? null,
                 'phone' => $user->phone ?? null,
+                'institutional_role' => $user->institutional_role ?? null,
             ],
             'teacher' => [
                 'employee_id' => $user->employee_id ?? null,
@@ -236,8 +238,67 @@ class AuthController extends Controller
             'profile_picture' => $user->profile_picture,
             'qr_code_identifier' => $user->qr_code_identifier ?? null,
             'is_first_login' => $user->is_first_login,
+            'onboarding_tour' => $user->onboarding_tour ?? null,
             'can_create_students' => $user->can_create_students ?? false,
             ...$idPayload,
         ];
+    }
+
+    /**
+     * Get user onboarding tour progress and completion status.
+     */
+    public function getOnboardingTourStatus(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $tour = is_array($user?->onboarding_tour) ? $user->onboarding_tour : [
+            'completed' => false,
+            'current_step' => 0,
+            'skipped' => false,
+        ];
+
+        return response()->json([
+            'completed' => (bool) ($tour['completed'] ?? false),
+            'current_step' => (int) ($tour['current_step'] ?? 0),
+            'skipped' => (bool) ($tour['skipped'] ?? false),
+            'onboarding_tour' => $tour,
+        ]);
+    }
+
+    /**
+     * Save user onboarding tour progress or completion.
+     */
+    public function updateOnboardingTourStatus(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'completed' => 'sometimes|boolean',
+            'current_step' => 'nullable|integer|min:0',
+            'skipped' => 'sometimes|boolean',
+            'reset' => 'sometimes|boolean',
+        ]);
+
+        $user = $request->user();
+
+        if (!empty($validated['reset'])) {
+            $updated = [
+                'completed' => false,
+                'current_step' => 0,
+                'skipped' => false,
+                'updated_at' => now()->toISOString(),
+            ];
+        } else {
+            $current = is_array($user->onboarding_tour) ? $user->onboarding_tour : [];
+            $updated = array_merge($current, $validated, [
+                'updated_at' => now()->toISOString(),
+            ]);
+        }
+
+        if (Schema::hasColumn($user->getTable(), 'onboarding_tour')) {
+            $user->update(['onboarding_tour' => $updated]);
+        }
+
+        return response()->json([
+            'message' => 'Onboarding tour status updated successfully.',
+            'onboarding_tour' => $user->fresh()?->onboarding_tour ?? $updated,
+        ]);
     }
 }

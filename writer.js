@@ -1,0 +1,1 @@
+const fs = require("fs"); const [file, b64] = process.argv.slice(2); fs.mkdirSync(require("path").dirname(file), {recursive: true}); fs.writeFileSync(file, Buffer.from(b64.replace(/\s+/g, ""), "base64").toString("utf8")); console.log("WROTE: " + file);

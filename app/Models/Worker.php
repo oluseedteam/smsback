@@ -20,9 +20,13 @@ class Worker extends Authenticatable
         'email',
         'password',
         'institutional_role',
+        'phone',
         'gender',
         'profile_picture',
         'is_first_login',
+        'onboarding_tour',
+        'qr_code_identifier',
+        'status',
     ];
 
     protected $hidden = [
@@ -35,6 +39,7 @@ class Worker extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'onboarding_tour' => 'array',
         ];
     }
 }

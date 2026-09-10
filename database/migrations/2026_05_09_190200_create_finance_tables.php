@@ -36,11 +36,10 @@ return new class extends Migration
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
             $table->foreignId('student_id')->constrained('students')->cascadeOnDelete();
-            $table->enum('type', ['funding', 'fee_payment']); // funding = adding money, fee_payment = paying fees
+            $table->string('type')->default('fee_payment'); // funding = adding money, fee_payment = paying fees
             $table->decimal('amount', 12, 2);
-            $table->string('reference')->unique(); // Flutterwave transaction reference
-            $table->string('flutterwave_tx_id')->nullable();
-            $table->enum('status', ['pending', 'successful', 'failed'])->default('pending');
+            $table->string('reference')->unique(); // Transaction reference
+            $table->string('status')->default('PENDING_VERIFICATION');
             $table->foreignId('fee_structure_id')->nullable()->constrained('fee_structures')->nullOnDelete();
             $table->enum('term', ['1st Term', '2nd Term', '3rd Term'])->nullable();
             $table->text('description')->nullable();

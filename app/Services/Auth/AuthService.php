@@ -25,10 +25,10 @@ class AuthService
 
         if ($payload['role'] === 'teacher' || $payload['role'] === 'worker') {
             $data['employee_id'] = $payload['employeeId'];
-            $data['qr_code_identifier'] = 'EYI-TCH-' . strtoupper(Str::random(10));
+            $data['qr_code_identifier'] = 'GHRA-TCH-' . strtoupper(Str::random(10));
         } else {
             $data['student_id'] = $payload['studentId'];
-            $data['qr_code_identifier'] = 'EYI-STU-' . strtoupper(Str::random(10));
+            $data['qr_code_identifier'] = 'GHRA-STU-' . strtoupper(Str::random(10));
             if (!empty($payload['department'])) {
                 $data['department'] = $payload['department'];
             }

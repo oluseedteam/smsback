@@ -5,6 +5,7 @@
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/framework/sessions/*
 /vendor
 .env
 .env.backup
@@ -16,6 +17,10 @@ Homestead.yaml
 npm-debug.log
 yarn-error.log
 /auth.json
+/*.zip
+/*.sql
+/database/*.sql
+/export_to_sql.php
 /.fleet
 /.idea
 /.nova

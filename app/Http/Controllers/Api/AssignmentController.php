@@ -54,13 +54,17 @@ class AssignmentController extends Controller
         ], 201);
     }
 
-    public function show(Assignment $assignment)
+    public function show(Request $request, Assignment $assignment)
     {
+        $this->authorizeAssignmentAccess($request, $assignment);
+
         return $assignment->load(['subject', 'schoolClass']);
     }
 
     public function update(Request $request, Assignment $assignment)
     {
+        $this->authorizeAssignmentManagement($request, $assignment);
+
         $validated = $request->validate([
             'title' => 'sometimes|required|string|max:255',
             'description' => 'nullable|string',
@@ -81,8 +85,10 @@ class AssignmentController extends Controller
         ]);
     }
 
-    public function destroy(Assignment $assignment)
+    public function destroy(Request $request, Assignment $assignment)
     {
+        $this->authorizeAssignmentManagement($request, $assignment);
+
         $assignment->delete();
         return response()->json([
             'message' => 'Assignment deleted successfully.'
@@ -95,6 +101,7 @@ class AssignmentController extends Controller
         if ($user->role !== 'student') {
             return response()->json(['message' => 'Only students can submit assignments.'], 403);
         }
+        $this->authorizeAssignmentAccess($request, $assignment);
 
         $validated = $request->validate([
             'submission_text' => 'nullable|string',
@@ -117,14 +124,17 @@ class AssignmentController extends Controller
         ]);
     }
 
-    public function submissions(Assignment $assignment)
+    public function submissions(Request $request, Assignment $assignment)
     {
+        $this->authorizeAssignmentManagement($request, $assignment);
+
         return response()->json($assignment->submissions()->with('student:id,full_name,student_id')->get());
     }
 
     public function grade(Request $request, $submissionId)
     {
         $submission = \App\Models\AssignmentSubmission::findOrFail($submissionId);
+        $this->authorizeAssignmentManagement($request, $submission->assignment);
         
         $validated = $request->validate([
             'score' => 'required|numeric',
@@ -141,5 +151,27 @@ class AssignmentController extends Controller
             'message' => 'Assignment graded successfully.',
             'submission' => $submission
         ]);
+    }
+
+    private function authorizeAssignmentAccess(Request $request, Assignment $assignment): void
+    {
+        $user = $request->user();
+        $allowed = match ($user->role) {
+            'admin' => true,
+            'teacher' => (int) $assignment->teacher_id === (int) $user->id,
+            'student' => $user->classes()->whereKey($assignment->school_class_id)->exists(),
+            default => false,
+        };
+
+        abort_unless($allowed, 403, 'You do not have access to this assignment.');
+    }
+
+    private function authorizeAssignmentManagement(Request $request, Assignment $assignment): void
+    {
+        $user = $request->user();
+        $allowed = $user->role === 'admin'
+            || ($user->role === 'teacher' && (int) $assignment->teacher_id === (int) $user->id);
+
+        abort_unless($allowed, 403, 'You cannot modify this assignment.');
     }
 }

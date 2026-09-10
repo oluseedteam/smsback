@@ -51,21 +51,21 @@ class ReportCardWorkflowTest extends TestCase
         // 2. Admin & Teacher & Student
         $this->admin = Admin::create([
             'full_name' => 'System Admin',
-            'email' => 'admin@eyitayoschools.edu.ng',
+            'email' => 'admin@ghraschools.edu.ng',
             'password' => Hash::make('secret123'),
         ]);
 
         $this->teacher = Teacher::create([
             'full_name' => 'Mr. Adeyemi Teacher',
-            'email' => 'teacher@eyitayoschools.edu.ng',
+            'email' => 'teacher@ghraschools.edu.ng',
             'employee_id' => 'EMP-001',
             'password' => Hash::make('secret123'),
         ]);
 
         $this->student = Student::create([
             'full_name' => 'Tunde Bakare',
-            'email' => 'tunde@eyitayoschools.edu.ng',
-            'student_id' => 'EYI-2026-001',
+            'email' => 'tunde@ghraschools.edu.ng',
+            'student_id' => 'GHRA-2026-001',
             'gender' => 'male',
             'parent_name' => 'Chief Bakare',
             'parent_email' => 'parent.bakare@example.com',
@@ -204,6 +204,25 @@ class ReportCardWorkflowTest extends TestCase
             'student_id' => $this->student->id,
             'action' => 'REPORT_CARD_RELEASED',
         ]);
+
+        // Verify released_at timestamp set on release
+        $fresh = $reportCard->fresh();
+        $this->assertNotNull($fresh->released_at,
+            'released_at must be populated when a report card is released');
+
+        // Verify email idempotency keys are unique (no duplicate sends possible)
+        $emailEvents = EmailEvent::where('report_card_id', $reportCard->id)->get();
+        $idempotencyKeys = $emailEvents->pluck('idempotency_key');
+        $this->assertEquals(
+            $idempotencyKeys->count(),
+            $idempotencyKeys->unique()->count(),
+            'All email_events must have unique idempotency_keys to prevent duplicate sends'
+        );
+
+        // Student portal: released report card is accessible
+        $studentRes = $this->actingAs($this->student, 'sanctum')
+            ->getJson("/api/student/report-cards/{$reportCard->id}");
+        $studentRes->assertOk();
     }
 
     /**
@@ -392,7 +411,7 @@ class ReportCardWorkflowTest extends TestCase
         // Verification via API
         $verifyResponse = $this->getJson("/api/public/report-card/verify/{$rawToken}");
         $verifyResponse->assertStatus(200);
-        $verifyResponse->assertJsonFragment(['student_id' => 'EYI-2026-001']);
+        $verifyResponse->assertJsonFragment(['student_id' => 'GHRA-2026-001']);
 
         // Invalid token
         $badResponse = $this->getJson('/api/public/report-card/verify/invalid-token-12345');

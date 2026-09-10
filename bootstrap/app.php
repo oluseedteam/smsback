@@ -11,6 +11,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->trustProxies(at: '*');
+
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureRole::class,
         ]);
@@ -27,7 +29,8 @@ return Application::configure(basePath: dirname(__DIR__))
         //
           $exceptions->render(function (Illuminate\Auth\AuthenticationException $e, $request) {
             return response()->json([
-                'error' => 'Authentication failed. Token missing or invalid.'
+                'message' => 'Authentication failed. Token missing or invalid.',
+                'error' => 'Authentication failed. Token missing or invalid.',
             ], 401);
         });
     })->create();

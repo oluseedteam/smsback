@@ -120,6 +120,8 @@ class ReportCardSettingsController extends Controller
             'current_term' => 'nullable|string',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after:start_date',
+            'registration_deadline' => 'nullable|date',
+            'registration_reopened' => 'nullable|boolean',
             'status' => 'nullable|in:upcoming,active,closed,ended',
         ]);
 
@@ -134,6 +136,8 @@ class ReportCardSettingsController extends Controller
             'current_term' => $validated['current_term'] ?? '1st Term',
             'start_date' => $validated['start_date'] ?? null,
             'end_date' => $validated['end_date'] ?? null,
+            'registration_deadline' => $validated['registration_deadline'] ?? null,
+            'registration_reopened' => $validated['registration_reopened'] ?? false,
             'status' => $validated['status'] ?? (!empty($validated['is_current']) ? 'active' : 'upcoming'),
             'created_by' => $request->user()?->id,
         ]);
@@ -155,6 +159,8 @@ class ReportCardSettingsController extends Controller
             'current_term' => 'sometimes|string',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after:start_date',
+            'registration_deadline' => 'nullable|date',
+            'registration_reopened' => 'nullable|boolean',
             'status' => 'sometimes|in:upcoming,active,closed,ended',
         ]);
 
@@ -315,10 +321,10 @@ class ReportCardSettingsController extends Controller
             'components' => 'nullable|array|min:1',
             'components.*.key' => 'required_with:components|string|max:50|distinct',
             'components.*.label' => 'required_with:components|string|max:100',
-            'components.*.type' => 'required_with:components|in:continuous_assessment,assignment,test,project,attendance,cbt,written',
+            'components.*.type' => 'required_with:components|in:continuous_assessment,assignment,test,project,attendance,cbt,written,combined',
             'components.*.max_score' => 'required_with:components|numeric|min:0.01',
             'total_max' => 'required|numeric|min:1',
-            'exam_method' => 'required|in:written,cbt',
+            'exam_method' => 'required|in:written,cbt,combined',
         ]);
 
         if (!empty($validated['components'])) {

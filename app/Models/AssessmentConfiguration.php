@@ -83,16 +83,37 @@ class AssessmentConfiguration extends Model
         }
 
         if ((float) $this->cbt_max <= 0 && (float) $this->written_max <= 0 && (float) $this->exam_max > 0) {
-            $isCbt = $this->exam_method === 'cbt';
-            $components[] = [
-                'key' => $isCbt ? 'cbt' : 'written',
-                'label' => $isCbt ? 'CBT' : 'Written Exam',
-                'type' => $isCbt ? 'cbt' : 'written',
-                'max_score' => (float) $this->exam_max,
-            ];
+            if ($this->exam_method === 'combined') {
+                $half = round((float) $this->exam_max / 2, 2);
+                $components[] = ['key' => 'cbt', 'label' => 'CBT', 'type' => 'cbt', 'max_score' => $half];
+                $components[] = ['key' => 'written', 'label' => 'Written Exam', 'type' => 'written', 'max_score' => round((float) $this->exam_max - $half, 2)];
+            } else {
+                $isCbt = $this->exam_method === 'cbt';
+                $components[] = [
+                    'key' => $isCbt ? 'cbt' : 'written',
+                    'label' => $isCbt ? 'CBT' : 'Written Exam',
+                    'type' => $isCbt ? 'cbt' : 'written',
+                    'max_score' => (float) $this->exam_max,
+                ];
+            }
         }
 
         return $components;
+    }
+
+    public function isCombined(): bool
+    {
+        return $this->exam_method === 'combined' || ((float) $this->cbt_max > 0 && (float) $this->written_max > 0);
+    }
+
+    public function hasCbt(): bool
+    {
+        return $this->exam_method === 'cbt' || $this->isCombined() || (float) $this->cbt_max > 0;
+    }
+
+    public function hasWritten(): bool
+    {
+        return $this->exam_method === 'written' || $this->isCombined() || (float) $this->written_max > 0;
     }
 
     public function academicSection(): BelongsTo

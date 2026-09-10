@@ -25,8 +25,25 @@ class DashboardService
         return match ($user->role) {
             'admin' => $this->adminSummary(),
             'teacher' => $this->teacherSummary($user->id),
+            'worker' => $this->workerSummary(),
             default => $this->studentSummary($user->id),
         };
+    }
+
+    private function workerSummary(): array
+    {
+        $currentSession = AcademicSession::where('is_current', true)->first();
+
+        return [
+            'current_session' => $currentSession?->name,
+            'current_term' => $currentSession?->current_term,
+            'available_resources' => \App\Models\Resource::query()->count(),
+            'upcoming_events' => \App\Models\CalendarEvent::query()
+                ->where('start_time', '>=', now())
+                ->orderBy('start_time')
+                ->limit(5)
+                ->get(['id', 'title', 'start_time', 'end_time', 'description']),
+        ];
     }
 
     private function adminSummary(): array
@@ -78,6 +95,7 @@ class DashboardService
             'pending_inquiries' => ContactInquiry::query()->where('status', 'pending')->count(),
             'unread_inquiries' => ContactInquiry::query()->where('is_read', false)->count(),
             'recent_inquiries' => ContactInquiry::query()->latest()->take(5)->get(),
+            'pending_payment_verifications' => \App\Models\Payment::whereIn('status', [\App\Models\Payment::STATUS_PENDING_VERIFICATION, 'pending'])->count(),
         ];
     }
 

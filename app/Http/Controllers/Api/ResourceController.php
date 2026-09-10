@@ -60,13 +60,23 @@ class ResourceController extends Controller
         ], 201);
     }
 
-    public function show(Resource $resource)
+    public function show(Request $request, Resource $resource)
     {
+        if ($request->user()->role === 'student' && $resource->school_class_id !== null) {
+            abort_unless(
+                $request->user()->classes()->whereKey($resource->school_class_id)->exists(),
+                403,
+                'You do not have access to this resource.'
+            );
+        }
+
         return $resource->load(['subject', 'teacher', 'admin', 'schoolClass']);
     }
 
     public function update(Request $request, Resource $resource)
     {
+        $this->authorizeResourceManagement($request, $resource);
+
         $validated = $request->validate([
             'title' => 'sometimes|string|max:255',
             'description' => 'nullable|string',
@@ -81,9 +91,20 @@ class ResourceController extends Controller
         return response()->json(['message' => 'Resource updated successfully.', 'resource' => $resource]);
     }
 
-    public function destroy(Resource $resource)
+    public function destroy(Request $request, Resource $resource)
     {
+        $this->authorizeResourceManagement($request, $resource);
+
         $resource->delete();
         return response()->json(['message' => 'Resource deleted successfully.']);
+    }
+
+    private function authorizeResourceManagement(Request $request, Resource $resource): void
+    {
+        $user = $request->user();
+        $allowed = $user->role === 'admin'
+            || ($user->role === 'teacher' && (int) $resource->teacher_id === (int) $user->id);
+
+        abort_unless($allowed, 403, 'You cannot modify this resource.');
     }
 }

@@ -31,7 +31,7 @@ class AIController extends Controller
         $currentSession = AcademicSession::where('is_current', true)->first();
 
         // 1. Build Role-Scoped Context (RBAC Enforced)
-        $systemContext = "You are the official Eyitayo Schools AI Assistant for {$settings->school_name} (Motto: {$settings->motto}). ";
+        $systemContext = "You are the official GHRA AI Assistant for {$settings->school_name} (Motto: {$settings->motto}). ";
         $systemContext .= "Current academic session: " . ($currentSession?->name ?? '2026/2027') . " (" . ($currentSession?->current_term ?? '1st Term') . ").\n";
 
         if ($role === 'student') {
@@ -106,7 +106,7 @@ class AIController extends Controller
         return response()->json([
             'reply' => $reply,
             'role' => $role,
-            'provider' => 'eyitayo_ai_engine'
+            'provider' => 'ghra_ai_engine'
         ]);
     }
 
@@ -118,7 +118,7 @@ class AIController extends Controller
         $sessionName = $session?->name ?? '2026/2027';
         $termName = $session?->current_term ?? '1st Term';
 
-        if (str_contains($p, 'motto') || str_contains($p, 'about school') || str_contains($p, 'eyitayo')) {
+        if (str_contains($p, 'motto') || str_contains($p, 'about school') || str_contains($p, 'ghra')) {
             return "Welcome to **{$schoolName}**!\nOur motto is *\"{$motto}\"*.\nWe are currently operating in the **{$sessionName} Academic Session ({$termName})**.";
         }
 
@@ -135,7 +135,7 @@ class AIController extends Controller
             if (str_contains($p, 'library') || str_contains($p, 'book')) {
                 return "Our Digital Library gives you 24/7 access to uploaded course materials, Open Library textbooks, and Google Books. Check the **Library** tab in your navigation menu.";
             }
-            return "Hello {$user->full_name}! I am your Eyitayo AI Study Assistant. I can help explain complex academic concepts, organize your study timetable for {$termName}, guide you through course registrations, and help you find digital textbooks in our library. How can I assist your studies today?";
+            return "Hello {$user->full_name}! I am your GHRA AI Study Assistant. I can help explain complex academic concepts, organize your study timetable for {$termName}, guide you through course registrations, and help you find digital textbooks in our library. How can I assist your studies today?";
         }
 
         if ($role === 'teacher') {

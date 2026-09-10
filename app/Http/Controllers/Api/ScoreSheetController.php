@@ -94,7 +94,7 @@ class ScoreSheetController extends Controller
             ->where("academic_session_id", $session->id)
             ->where("term", $term)
             ->where("subject_id", $subject->id)
-            ->whereIn('status', ['registered', 'pending', 'approved', 'active'])
+            ->whereIn('status', CourseRegistration::ELIGIBLE_STATUSES)
             ->pluck("student_id");
 
         $students = Student::whereIn("id", $registeredStudentIds)

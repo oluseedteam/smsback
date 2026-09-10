@@ -41,6 +41,9 @@ class SubjectController extends Controller
     /**
      * Create a new subject with code and section.
      */
+    /**
+     * Create a new subject with code and section.
+     */
     public function store(Request $request): JsonResponse
     {
         $payload = $request->validate([
@@ -48,15 +51,44 @@ class SubjectController extends Controller
             "code" => ["required", "string", "max:30", Rule::unique("subjects", "code")],
             "academic_section_id" => ["nullable", "exists:academic_sections,id"],
             "description" => ["nullable", "string"],
-            "status" => ["nullable", "in:active,inactive"],
+            "is_compulsory" => ["nullable", "boolean"],
+            "status" => ["nullable", "in:active,inactive,draft"],
             "class_ids" => ["nullable", "array"],
             "class_ids.*" => ["integer", "exists:school_classes,id"],
+            "class_assignments" => ["nullable", "array"],
+            "class_assignments.*.class_id" => ["required_with:class_assignments", "integer", "exists:school_classes,id"],
+            "class_assignments.*.teacher_id" => ["nullable", "integer", "exists:teachers,id"],
+            "class_assignments.*.is_compulsory" => ["nullable", "boolean"],
         ]);
 
+        $payload['is_compulsory'] = $payload['is_compulsory'] ?? false;
         $subject = Subject::query()->create($payload);
 
-        if (!empty($payload["class_ids"])) {
-            $subject->classes()->sync($payload["class_ids"]);
+        $assignedClassIds = [];
+        if (!empty($payload["class_assignments"])) {
+            $syncData = [];
+            foreach ($payload["class_assignments"] as $assignment) {
+                $syncData[$assignment['class_id']] = [
+                    'teacher_id' => $assignment['teacher_id'] ?? null,
+                    'is_compulsory' => $assignment['is_compulsory'] ?? $subject->is_compulsory,
+                ];
+                $assignedClassIds[] = $assignment['class_id'];
+            }
+            $subject->classes()->sync($syncData);
+        } elseif (!empty($payload["class_ids"])) {
+            $syncData = [];
+            foreach ($payload["class_ids"] as $classId) {
+                $syncData[$classId] = [
+                    'is_compulsory' => $subject->is_compulsory,
+                ];
+                $assignedClassIds[] = $classId;
+            }
+            $subject->classes()->sync($syncData);
+        }
+
+        // Notify affected students in enrolled classes
+        if (!empty($assignedClassIds) && ($payload['status'] ?? 'active') === 'active') {
+            $this->notifyEnrolledStudents($subject, $assignedClassIds);
         }
 
         return response()->json($subject->load(["academicSection:id,name", "classes:id,name,grade_level"]), 201);
@@ -88,18 +120,70 @@ class SubjectController extends Controller
             "code" => ["sometimes", "string", "max:30", Rule::unique("subjects", "code")->ignore($subject->id)],
             "academic_section_id" => ["nullable", "exists:academic_sections,id"],
             "description" => ["nullable", "string"],
-            "status" => ["nullable", "in:active,inactive"],
+            "is_compulsory" => ["nullable", "boolean"],
+            "status" => ["nullable", "in:active,inactive,draft"],
             "class_ids" => ["nullable", "array"],
             "class_ids.*" => ["integer", "exists:school_classes,id"],
+            "class_assignments" => ["nullable", "array"],
+            "class_assignments.*.class_id" => ["required_with:class_assignments", "integer", "exists:school_classes,id"],
+            "class_assignments.*.teacher_id" => ["nullable", "integer", "exists:teachers,id"],
+            "class_assignments.*.is_compulsory" => ["nullable", "boolean"],
         ]);
 
         $subject->update($payload);
 
-        if (array_key_exists("class_ids", $payload)) {
-            $subject->classes()->sync($payload["class_ids"] ?? []);
+        $existingClassIds = $subject->classes()->pluck('school_classes.id')->all();
+        $newlyAssignedClassIds = [];
+
+        if (array_key_exists("class_assignments", $payload) && is_array($payload["class_assignments"])) {
+            $syncData = [];
+            foreach ($payload["class_assignments"] as $assignment) {
+                $cid = $assignment['class_id'];
+                $syncData[$cid] = [
+                    'teacher_id' => $assignment['teacher_id'] ?? null,
+                    'is_compulsory' => $assignment['is_compulsory'] ?? $subject->is_compulsory,
+                ];
+                if (!in_array($cid, $existingClassIds, true)) {
+                    $newlyAssignedClassIds[] = $cid;
+                }
+            }
+            $subject->classes()->sync($syncData);
+        } elseif (array_key_exists("class_ids", $payload)) {
+            $syncData = [];
+            foreach (($payload["class_ids"] ?? []) as $classId) {
+                $syncData[$classId] = [
+                    'is_compulsory' => $subject->is_compulsory,
+                ];
+                if (!in_array($classId, $existingClassIds, true)) {
+                    $newlyAssignedClassIds[] = $classId;
+                }
+            }
+            $subject->classes()->sync($syncData);
+        }
+
+        if (!empty($newlyAssignedClassIds) && ($subject->status ?? 'active') === 'active') {
+            $this->notifyEnrolledStudents($subject, $newlyAssignedClassIds);
         }
 
         return response()->json($subject->load(["academicSection:id,name", "classes:id,name,grade_level"]));
+    }
+
+    private function notifyEnrolledStudents(Subject $subject, array $classIds): void
+    {
+        $studentIds = \Illuminate\Support\Facades\DB::table('class_student')
+            ->whereIn('school_class_id', $classIds)
+            ->pluck('student_id')
+            ->unique();
+
+        foreach ($studentIds as $studentId) {
+            \App\Models\StudentNotification::notifyStudent(
+                (int) $studentId,
+                "New Subject Available: {$subject->name}",
+                "Subject {$subject->name} ({$subject->code}) is now open for course registration in your class.",
+                '/student/course-registration',
+                'subject_published'
+            );
+        }
     }
 
     /**

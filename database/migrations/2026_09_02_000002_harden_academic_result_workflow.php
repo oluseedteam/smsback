@@ -74,6 +74,7 @@ return new class extends Migration
         });
 
         Schema::table('cbt_submissions', function (Blueprint $table): void {
+            $table->index('cbt_test_id');
             $table->dropUnique(['cbt_test_id', 'student_id']);
             $table->decimal('raw_score', 8, 2)->default(0)->after('score');
             $table->decimal('weighted_score', 8, 2)->default(0)->after('raw_score');

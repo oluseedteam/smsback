@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
+use App\Models\SchoolClass;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AttendanceController extends Controller
 {
@@ -64,7 +66,24 @@ class AttendanceController extends Controller
             'records.*.note' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $teacherId = $request->user()->role === 'teacher' ? $request->user()->id : null;
+        $user = $request->user();
+        if ($user->role === 'teacher') {
+            $class = SchoolClass::findOrFail($payload['school_class_id']);
+            $isClassTeacher = (int) $class->teacher_id === (int) $user->id;
+            $isSubjectTeacher = !empty($payload['subject_id']) && DB::table('class_subject')
+                ->where('school_class_id', $class->id)
+                ->where('subject_id', $payload['subject_id'])
+                ->where('teacher_id', $user->id)
+                ->exists();
+
+            if (!$isClassTeacher && !$isSubjectTeacher) {
+                return response()->json([
+                    'message' => 'Unauthorized. Only the assigned class teacher or admin can mark attendance for this class.'
+                ], 403);
+            }
+        }
+
+        $teacherId = $user->role === 'teacher' ? $user->id : null;
 
         foreach ($payload['records'] as $record) {
             AttendanceRecord::query()->updateOrCreate(
@@ -98,8 +117,22 @@ class AttendanceController extends Controller
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        if ($request->user()->role === 'teacher') {
-            $payload['marked_by_teacher_id'] = $request->user()->id;
+        $user = $request->user();
+        if ($user->role === 'teacher') {
+            $class = SchoolClass::findOrFail($attendance->school_class_id);
+            $isClassTeacher = (int) $class->teacher_id === (int) $user->id;
+            $isSubjectTeacher = !empty($attendance->subject_id) && DB::table('class_subject')
+                ->where('school_class_id', $class->id)
+                ->where('subject_id', $attendance->subject_id)
+                ->where('teacher_id', $user->id)
+                ->exists();
+
+            if (!$isClassTeacher && !$isSubjectTeacher) {
+                return response()->json([
+                    'message' => 'Unauthorized. Only the assigned class teacher or admin can update attendance for this class.'
+                ], 403);
+            }
+            $payload['marked_by_teacher_id'] = $user->id;
         }
 
         $attendance->update($payload);

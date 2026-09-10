@@ -453,6 +453,12 @@ class CbtController extends Controller
             return $question;
         });
 
+        $savedAnswers = CbtAnswer::where('cbt_submission_id', $submission->id)
+            ->pluck('selected_answer', 'cbt_question_id');
+        $elapsedSeconds = $submission->started_at ? $submission->started_at->diffInSeconds(now()) : 0;
+        $totalSeconds = (int) $cbtTest->duration_minutes * 60;
+        $remainingSeconds = max(0, $totalSeconds - $elapsedSeconds);
+
         return response()->json([
             "submission_id" => $submission->id,
             "test" => $cbtTest->load(["subject:id,name", "schoolClass:id,name"]),
@@ -460,6 +466,79 @@ class CbtController extends Controller
             "duration_minutes" => $cbtTest->duration_minutes,
             "started_at" => $submission->started_at,
             'attempt_number' => $submission->attempt_number,
+            'saved_answers' => $savedAnswers,
+            'remaining_seconds' => $remainingSeconds,
+        ]);
+    }
+
+    /**
+     * Student: Save an individual question answer (autosave / network disconnect recovery).
+     */
+    public function saveAnswer(Request $request, CbtTest $cbtTest): JsonResponse
+    {
+        $student = $request->user();
+        $settings = SchoolSetting::getSettings();
+
+        if (!($settings->cbt_enabled ?? true)) {
+            return response()->json(['message' => 'CBT examination access is currently closed by Administration.'], 403);
+        }
+
+        $validated = $request->validate([
+            'question_id' => 'required|exists:cbt_questions,id',
+            'selected_answer' => 'required|in:A,B,C,D',
+            'time_spent_seconds' => 'nullable|integer|min:0',
+        ]);
+
+        $submission = CbtSubmission::where('cbt_test_id', $cbtTest->id)
+            ->where('student_id', $student->id)
+            ->whereNull('submitted_at')
+            ->latest()
+            ->first();
+
+        if (!$submission) {
+            return response()->json(['message' => 'No active exam session found to save answer.'], 400);
+        }
+
+        $allowedSeconds = max(60, ((int) $cbtTest->duration_minutes * 60) + 30);
+        $elapsedSeconds = $submission->started_at ? $submission->started_at->diffInSeconds(now()) : $allowedSeconds + 1;
+        if ($elapsedSeconds > $allowedSeconds) {
+            $submission->update(['status' => 'expired']);
+            return response()->json(['message' => 'The examination duration has elapsed.'], 422);
+        }
+
+        $question = CbtQuestion::where('id', $validated['question_id'])
+            ->where('cbt_test_id', $cbtTest->id)
+            ->first();
+
+        if (!$question) {
+            return response()->json(['message' => 'The question does not belong to this test.'], 422);
+        }
+
+        $isCorrect = $question->correct_answer === $validated['selected_answer'];
+
+        CbtAnswer::updateOrCreate(
+            [
+                'cbt_submission_id' => $submission->id,
+                'cbt_question_id' => $question->id,
+            ],
+            [
+                'selected_answer' => $validated['selected_answer'],
+                'is_correct' => $isCorrect,
+            ]
+        );
+
+        if (isset($validated['time_spent_seconds'])) {
+            $submission->update(['duration_used' => min((int) $validated['time_spent_seconds'], $allowedSeconds)]);
+        }
+
+        $totalSeconds = (int) $cbtTest->duration_minutes * 60;
+
+        return response()->json([
+            'message' => 'Answer saved.',
+            'saved' => true,
+            'question_id' => $question->id,
+            'selected_answer' => $validated['selected_answer'],
+            'remaining_seconds' => max(0, $totalSeconds - $elapsedSeconds),
         ]);
     }
 
@@ -503,13 +582,24 @@ class CbtController extends Controller
         $totalPoints = (float) $approvedQuestions->sum('points');
         $earnedPoints = 0;
 
+        // Merge DB saved answers with request answers
+        $existingDbAnswers = CbtAnswer::where('cbt_submission_id', $submission->id)
+            ->pluck('selected_answer', 'cbt_question_id')
+            ->toArray();
+
+        $submittedAnswers = [];
         foreach ($validated["answers"] as $ans) {
-            $question = $approvedQuestions->get($ans['question_id']);
+            $submittedAnswers[$ans['question_id']] = $ans['selected_answer'];
+        }
+        $mergedAnswers = $submittedAnswers + $existingDbAnswers;
+
+        foreach ($mergedAnswers as $questionId => $selectedAnswer) {
+            $question = $approvedQuestions->get($questionId);
             if (!$question) {
-                return response()->json(['message' => 'One or more answers do not belong to this examination.'], 422);
+                continue;
             }
 
-            $isCorrect = $question->correct_answer === $ans["selected_answer"];
+            $isCorrect = $question->correct_answer === $selectedAnswer;
             if ($isCorrect) {
                 $correct++;
                 $earnedPoints += $question->points;
@@ -523,7 +613,7 @@ class CbtController extends Controller
                     "cbt_question_id" => $question->id,
                 ],
                 [
-                    "selected_answer" => $ans["selected_answer"],
+                    "selected_answer" => $selectedAnswer,
                     "is_correct" => $isCorrect,
                 ]
             );
@@ -549,14 +639,18 @@ class CbtController extends Controller
             'status' => 'submitted',
         ]);
 
-        // Auto synchronize with SubjectResult if CBT exam method is configured
+        // Auto synchronize with SubjectResult if CBT/combined exam method is configured
         $assessmentConfig = \App\Models\AssessmentConfiguration::where("school_class_id", $cbtTest->school_class_id)
             ->when($cbtTest->academic_session_id, fn ($query, $sessionId) => $query->where('academic_session_id', $sessionId))
             ->where("subject_id", $cbtTest->subject_id)
             ->where("term", $cbtTest->term)
             ->first();
 
-        if ($assessmentConfig && collect($assessmentConfig->resolvedComponents())->contains(fn ($component) => ($component['type'] ?? null) === 'cbt')) {
+        if ($assessmentConfig && (
+            $assessmentConfig->exam_method === 'cbt' ||
+            $assessmentConfig->exam_method === 'combined' ||
+            collect($assessmentConfig->resolvedComponents())->contains(fn ($component) => in_array($component['type'] ?? null, ['cbt', 'combined'], true))
+        )) {
             $currentSession = $cbtTest->academicSession ?: AcademicSession::where("is_current", true)->first();
             if ($currentSession) {
                 $existingResult = SubjectResult::where('student_id', $student->id)

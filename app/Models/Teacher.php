@@ -26,6 +26,7 @@ class Teacher extends Authenticatable
         'gender',
         'profile_picture',
         'is_first_login',
+        'onboarding_tour',
         'can_create_students',
         'class_teacher_of',
         'assigned_session_id',
@@ -51,6 +52,7 @@ class Teacher extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'can_create_students' => 'boolean',
+            'onboarding_tour' => 'array',
         ];
     }
 

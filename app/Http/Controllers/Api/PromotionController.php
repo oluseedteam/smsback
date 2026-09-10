@@ -82,6 +82,8 @@ class PromotionController extends Controller
             'student_ids.*' => 'exists:students,id',
             'promotion_status' => 'required|string|in:promoted,promoted_on_trial,retained,graduated,transferred,withdrawn',
             'notes' => 'nullable|string',
+            'allow_override' => 'nullable|boolean',
+            'override_reason' => 'required_if:allow_override,true|nullable|string|max:500',
         ]);
 
         $admin = $request->user();
@@ -107,10 +109,26 @@ class PromotionController extends Controller
                     ->whereIn('term', ['3rd Term', 'Third Term', 'third_term'])
                     ->whereIn('status', ['approved', 'released'])
                     ->first();
+
                 if (!$annualReport) {
-                    throw ValidationException::withMessages([
-                        'student_ids' => "Student {$student->student_id} has no approved Third Term annual result.",
-                    ]);
+                    if (!empty($validated['allow_override'])) {
+                        AuditLog::create([
+                            'user_id' => $admin?->id,
+                            'user_type' => 'admin',
+                            'user_name' => $admin?->full_name ?? 'Admin',
+                            'action' => 'PROMOTION_OVERRIDE',
+                            'academic_session_id' => $validated['from_session_id'],
+                            'details' => [
+                                'student_id' => $student->id,
+                                'reason' => $validated['override_reason'] ?? $validated['notes'] ?? 'Administrative override without approved 3rd term report',
+                            ],
+                            'ip_address' => request()->ip(),
+                        ]);
+                    } else {
+                        throw ValidationException::withMessages([
+                            'student_ids' => "Student {$student->student_id} has no approved Third Term annual result.",
+                        ]);
+                    }
                 }
 
                 // 1. Record permanent history log
@@ -127,8 +145,8 @@ class PromotionController extends Controller
                     'to_class_id' => $validated['to_class_id'] ?? null,
                     'to_section' => $validated['to_section'] ?? $student->section,
                     'promotion_status' => $status,
-                    'annual_average' => $annualReport->cumulative_average,
-                    'reason' => $validated['notes'] ?? null,
+                    'annual_average' => $annualReport?->cumulative_average ?? null,
+                    'reason' => $validated['override_reason'] ?? $validated['notes'] ?? null,
                     'promoted_by' => $admin?->id,
                     'promoted_at' => now(),
                     'notes' => $validated['notes'] ?? ($toClass ? "Academic decision recorded for {$toClass->name}" : 'Final academic decision recorded by Administration'),
@@ -169,13 +187,15 @@ class PromotionController extends Controller
                     'transferred' => 'Transferred',
                     'withdrawn' => 'Withdrawn',
                 };
-                $annualReport->update([
-                    'promotion_status' => $displayStatus,
-                    'destination_class_id' => $status === 'graduated' ? null : $toClass?->id,
-                    'destination_class_name' => $status === 'graduated' ? null : $toClass?->name,
-                    'pdf_path' => null,
-                    'pdf_generated_at' => null,
-                ]);
+                if ($annualReport) {
+                    $annualReport->update([
+                        'promotion_status' => $displayStatus,
+                        'destination_class_id' => $status === 'graduated' ? null : $toClass?->id,
+                        'destination_class_name' => $status === 'graduated' ? null : $toClass?->name,
+                        'pdf_path' => null,
+                        'pdf_generated_at' => null,
+                    ]);
+                }
 
                 if ($previousPromotion) {
                     AuditLog::record('PROMOTION_CHANGED', $student->id, $validated['from_session_id'], '3rd Term', [

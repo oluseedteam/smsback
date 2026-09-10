@@ -343,13 +343,18 @@ class ReportCardController extends Controller
 
         // 2. Check payment condition if enabled
         if ($settings->require_fee_payment_for_release) {
-            $paymentInfo = $this->resolveStudentPaymentStatus($reportCard->student_id, $reportCard->academic_session_id, $reportCard->term);
+            $paymentInfo = $this->resolveStudentPaymentStatus($reportCard->student_id, $reportCard->academic_session_id, $reportCard->term, $reportCard->school_class_id);
+            $minPercentage = $settings->minimum_result_payment_percentage ?? 100;
             $allowedStatuses = $settings->allowed_payment_statuses_for_release ?: ['PAID'];
 
-            if (!in_array($paymentInfo['status'], $allowedStatuses)) {
+            $meetsPercentage = $paymentInfo['percentage_paid'] >= $minPercentage;
+            $meetsStatus = in_array($paymentInfo['status'], $allowedStatuses);
+
+            if (!$meetsPercentage && !$meetsStatus) {
                 return response()->json([
-                    'message' => "Cannot release report card: School fee status is {$paymentInfo['status']}. Full payment required by school policy.",
+                    'message' => "Cannot release report card: School fee status is {$paymentInfo['status']} ({$paymentInfo['percentage_paid']}% paid). School policy requires confirmed payment (minimum {$minPercentage}%).",
                     'payment_status' => $paymentInfo['status'],
+                    'percentage_paid' => $paymentInfo['percentage_paid'],
                     'balance_due' => $paymentInfo['balance'],
                 ], 403);
             }
@@ -1287,14 +1292,65 @@ HTML;
     /**
      * Compute actual payment status for a student in a session & term.
      */
-    private function resolveStudentPaymentStatus(int $studentId, ?int $sessionId, string $term): array
+    private function resolveStudentPaymentStatus(int $studentId, ?int $sessionId, string $term, ?int $schoolClassId = null): array
     {
-        $fees = FeeStructure::query()->sum('amount');
-        $payments = Payment::where('student_id', $studentId)
-            ->where('status', 'successful')
+        $student = \App\Models\Student::find($studentId);
+        $studentClass = $schoolClassId ? \App\Models\SchoolClass::find($schoolClassId) : $student?->classes()->first();
+        $className = $studentClass?->name;
+        $department = $student?->department;
+
+        $feesQuery = FeeStructure::query()->where('is_active', true);
+        if ($className) {
+            $feesQuery->where('class_name', $className);
+        }
+        if ($sessionId) {
+            $feesQuery->where(function ($q) use ($sessionId) {
+                $q->where('academic_session_id', $sessionId)
+                  ->orWhereNull('academic_session_id');
+            });
+        }
+        $feesQuery->where(function ($q) use ($term) {
+            $q->where('term', $term)
+              ->orWhereNull('term');
+        });
+        if ($department) {
+            $feesQuery->where(function ($q) use ($department) {
+                $q->whereNull('department')
+                  ->orWhere('department', '')
+                  ->orWhere('department', $department);
+            });
+        }
+
+        $fees = (float) $feesQuery->sum('amount');
+
+        // Only CONFIRMED payments count toward paid school fees
+        $payments = (float) Payment::where('student_id', $studentId)
+            ->whereIn('status', [Payment::STATUS_CONFIRMED, 'successful'])
+            ->where(function ($q) use ($sessionId) {
+                if ($sessionId) {
+                    $q->where('academic_session_id', $sessionId)->orWhereNull('academic_session_id');
+                }
+            })
+            ->where(function ($q) use ($term) {
+                $q->where('term', $term)->orWhereNull('term');
+            })
+            ->sum('amount');
+
+        // Pending payments (for visibility only, NOT counted as paid!)
+        $pending = (float) Payment::where('student_id', $studentId)
+            ->whereIn('status', [Payment::STATUS_PENDING_VERIFICATION, 'pending'])
+            ->where(function ($q) use ($sessionId) {
+                if ($sessionId) {
+                    $q->where('academic_session_id', $sessionId)->orWhereNull('academic_session_id');
+                }
+            })
+            ->where(function ($q) use ($term) {
+                $q->where('term', $term)->orWhereNull('term');
+            })
             ->sum('amount');
 
         $balance = max(0, $fees - $payments);
+        $percentagePaid = $fees > 0 ? min(100, round(($payments / $fees) * 100, 2)) : 100;
 
         if ($fees == 0 || $payments >= $fees) {
             $status = 'PAID';
@@ -1308,7 +1364,9 @@ HTML;
             'status' => $status,
             'total_fee' => $fees,
             'total_paid' => $payments,
+            'pending_amount' => $pending,
             'balance' => $balance,
+            'percentage_paid' => $percentagePaid,
         ];
     }
 

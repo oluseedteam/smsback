@@ -5,6 +5,11 @@
 
     RewriteEngine On
 
+    # Crucial for cPanel / FastCGI / PHP-FPM authorization header pass-through
+    <IfModule mod_setenvif.c>
+        SetEnvIfNoCase ^Authorization$ "(.+)" HTTP_AUTHORIZATION=$1
+    </IfModule>
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

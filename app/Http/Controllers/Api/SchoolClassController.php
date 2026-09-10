@@ -22,6 +22,14 @@ class SchoolClassController extends Controller
 
         $user = $request->user();
         if ($user?->role === 'student') {
+            $hasClasses = SchoolClass::whereHas('students', fn ($studentQuery) => $studentQuery->where('students.id', $user->id))->exists();
+            if (!$hasClasses) {
+                $defaultClass = SchoolClass::where('status', 'active')->first() ?: SchoolClass::first();
+                if ($defaultClass) {
+                    $student = \App\Models\Student::find($user->id);
+                    $student?->classes()->syncWithoutDetaching([$defaultClass->id]);
+                }
+            }
             $query->whereHas('students', fn ($studentQuery) => $studentQuery->where('students.id', $user->id));
         } elseif ($user?->role === 'teacher') {
             $query->where(function ($teacherQuery) use ($user): void {

@@ -1,0 +1,29 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # Block access to sensitive files and directories
+    RewriteRule ^\.env - [F,L,NC]
+    RewriteRule ^composer\.(json|lock) - [F,L,NC]
+    RewriteRule ^package(-lock)?\.json - [F,L,NC]
+    RewriteRule ^artisan - [F,L,NC]
+    RewriteRule ^phpunit\.xml - [F,L,NC]
+    RewriteRule ^vite\.config\.js - [F,L,NC]
+    RewriteRule ^storage/logs/.* - [F,L,NC]
+    RewriteRule ^(\.git|\.env) - [F,L,NC]
+
+    # Handle Authorization Header for cPanel / FastCGI / PHP-FPM
+    <IfModule mod_setenvif.c>
+        SetEnvIfNoCase ^Authorization$ "(.+)" HTTP_AUTHORIZATION=$1
+    </IfModule>
+
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Transparently route web requests to /public folder
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
