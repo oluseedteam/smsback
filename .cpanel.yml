@@ -2,8 +2,6 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home2/ghraorg1/public_html/
-
-    # Laravel application
     - /bin/cp -R app $DEPLOYPATH
     - /bin/cp -R bootstrap $DEPLOYPATH
     - /bin/cp -R config $DEPLOYPATH
@@ -11,19 +9,6 @@ deployment:
     - /bin/cp -R public $DEPLOYPATH
     - /bin/cp -R resources $DEPLOYPATH
     - /bin/cp -R routes $DEPLOYPATH
-
-    # Root Laravel files
     - /bin/cp artisan $DEPLOYPATH
     - /bin/cp composer.json $DEPLOYPATH
     - /bin/cp composer.lock $DEPLOYPATH
-
-    # Clear Laravel caches
-    - cd $DEPLOYPATH && php artisan optimize:clear
-
-    # Run new database migrations
-    - cd $DEPLOYPATH && php artisan migrate --force
-
-    # Rebuild production caches
-    - cd $DEPLOYPATH && php artisan config:cache
-    - cd $DEPLOYPATH && php artisan route:cache
-    - cd $DEPLOYPATH && php artisan view:cache
